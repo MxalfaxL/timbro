@@ -1,0 +1,826 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Timbro</title>
+<meta name="description" content="Conta le corse in pullman e dice se l'abbonamento annuale conviene">
+<meta name="theme-color" content="#F5F2EC" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121316" media="(prefers-color-scheme: dark)">
+<meta name="color-scheme" content="light dark">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Timbro">
+<meta name="format-detection" content="telephone=no">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icona-180.png">
+<link rel="icon" type="image/png" href="icona-192.png">
+<link rel="modulepreload" href="motore.js">
+<link rel="modulepreload" href="sincro.js">
+<style>
+:root{
+  --fondo:#F5F2EC; --carta:#FFFFFF; --inch:#1C1E23; --grigio:#6C7078; --linea:#E6E0D6; --tenue:#EDE8DF;
+  --bus:#D9530F; --bus-tinta:#FCE6D8; --auto:#3557D4; --auto-tinta:#E2E8FB; --altro:#7B828B; --altro-tinta:#E9EBEE;
+  --verde:#22833A; --verde-tinta:#E0F2E4; --rosso:#C2352B; --rosso-tinta:#FAE3E1; --giallo:#B7791F;
+  --r:18px; --ombra:0 1px 2px rgba(28,30,35,.05),0 6px 18px rgba(28,30,35,.05);
+  --mono:ui-monospace,"SF Mono",Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root{
+  --fondo:#121316; --carta:#1C1E22; --inch:#ECEDEF; --grigio:#9A9EA6; --linea:#2D3036; --tenue:#25282D;
+  --bus:#FF8A45; --bus-tinta:#3B2417; --auto:#8199F3; --auto-tinta:#1F2642; --altro:#A3A9B1; --altro-tinta:#2B2E34;
+  --verde:#52C870; --verde-tinta:#173020; --rosso:#FF6E61; --rosso-tinta:#3B1D1B; --giallo:#E7B04F;
+  --ombra:0 1px 2px rgba(0,0,0,.3);
+}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--fondo);color:var(--inch);
+  font:16px/1.4 -apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,"Segoe UI",Roboto,sans-serif;
+  font-variant-numeric:tabular-nums}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;touch-action:manipulation}
+button:disabled{cursor:default}
+[hidden]{display:none!important}
+.app{max-width:480px;margin:0 auto;padding:calc(env(safe-area-inset-top) + 10px) 16px calc(96px + env(safe-area-inset-bottom))}
+
+/* testata */
+.testata{display:flex;align-items:center;justify-content:space-between;height:44px;margin-bottom:6px}
+.marchio{display:flex;align-items:center;gap:9px;font-weight:800;font-size:20px;letter-spacing:-.02em}
+.marchio svg{width:30px;height:30px}
+.sync{display:flex;align-items:center;gap:7px;height:32px;padding:0 12px;border-radius:99px;background:var(--carta);
+  border:1px solid var(--linea);font-size:13px;font-weight:600;color:var(--grigio)}
+.sync i{width:8px;height:8px;border-radius:50%;background:var(--altro)}
+.sync.verde i{background:var(--verde)} .sync.giallo i{background:var(--giallo)} .sync.rosso i{background:var(--rosso)}
+.sync.rosso{color:var(--rosso)}
+.sync.corso i{animation:pulsa 1s infinite alternate}
+@keyframes pulsa{to{opacity:.25}}
+
+/* data */
+.nav-data{position:relative;display:grid;grid-template-columns:48px 1fr 48px;align-items:center;text-align:center;margin:8px 0 4px}
+.freccia{width:48px;height:48px;border-radius:50%;display:grid;place-items:center;color:var(--inch)}
+.freccia:active{background:var(--tenue)}
+.freccia:disabled{opacity:.2}
+.freccia svg{width:22px;height:22px}
+.data-etichetta{font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--grigio)}
+.data-grande{font-size:30px;font-weight:800;letter-spacing:-.025em;line-height:1.15}
+.data-stato{display:inline-block;margin-top:4px;font-size:12px;font-weight:700;padding:2px 9px;border-radius:99px}
+.data-stato.ok{color:var(--verde);background:var(--verde-tinta)}
+.data-stato.manca{color:var(--rosso);background:var(--rosso-tinta)}
+.data-stato.oggi{color:var(--grigio);background:var(--tenue)}
+.testata-dx{display:flex;align-items:center;gap:8px}
+.torna-oggi{height:32px;padding:0 14px;border-radius:99px;background:var(--bus);color:#fff;font-size:13px;font-weight:700}
+
+.timbro-segno{position:absolute;left:50%;top:50%;pointer-events:none;opacity:0;white-space:nowrap;
+  border:3px solid var(--bus);color:var(--bus);border-radius:10px;padding:4px 12px;font-weight:900;font-size:22px;
+  letter-spacing:.12em;font-family:var(--mono);transform:translate(-50%,-50%) rotate(-11deg)}
+.timbro-segno.via{animation:timbra 1.15s ease-out}
+@keyframes timbra{
+  0%{opacity:0;transform:translate(-50%,-50%) rotate(-11deg) scale(1.9)}
+  14%{opacity:.95;transform:translate(-50%,-50%) rotate(-11deg) scale(1)}
+  70%{opacity:.9;transform:translate(-50%,-50%) rotate(-11deg) scale(1)}
+  100%{opacity:0;transform:translate(-50%,-50%) rotate(-11deg) scale(1)}}
+
+/* settimana */
+.settimana{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin:10px 0 14px}
+.gg{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 0 7px;border-radius:12px}
+.gg .gs{font-size:11px;font-weight:700;color:var(--grigio)}
+.gg .gn{font-size:16px;font-weight:700;width:32px;height:32px;display:grid;place-items:center;border-radius:50%}
+.gg .segno{width:16px;height:4px;border-radius:2px;background:transparent}
+.gg.oggi .gn{color:var(--bus)}
+.gg.sel .gn{background:var(--inch);color:var(--fondo)}
+.gg:disabled{opacity:.3}
+.pullman .segno{background:var(--bus)} .macchina .segno{background:var(--auto)} .altro .segno{background:var(--altro)}
+.libero .segno{width:8px;background:var(--grigio);opacity:.45}
+.libero.corse .segno{background:linear-gradient(90deg,var(--grigio) 50%,var(--bus) 50%);opacity:1}
+.gg.manca .segno{width:6px;height:6px;border-radius:50%;background:var(--rosso)}
+
+/* schede */
+.scheda{background:var(--carta);border:1px solid var(--linea);border-radius:var(--r);padding:14px;margin-bottom:12px;box-shadow:var(--ombra)}
+.scheda h3{margin:0 0 10px;font-size:15px;letter-spacing:-.01em}
+.segmenti{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;border-radius:13px;background:var(--tenue)}
+.segmenti button{height:42px;border-radius:10px;font-weight:650;font-size:15px;color:var(--grigio)}
+.segmenti button[aria-pressed=true]{background:var(--carta);color:var(--inch);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.domanda{margin:16px 2px 10px;font-weight:700;font-size:15px}
+.mezzi{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.mezzo{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;height:96px;border-radius:15px;
+  border:2px solid var(--linea);font-weight:700;font-size:15px;transition:transform .08s}
+.mezzo:active{transform:scale(.96)}
+.mezzo .emoji{font-size:32px;line-height:1}
+.mezzo small{font-size:11px;font-weight:600;color:var(--grigio);margin-top:-2px}
+.mezzo[data-valore=pullman][aria-pressed=true]{border-color:var(--bus);background:var(--bus-tinta);color:var(--bus)}
+.mezzo[data-valore=macchina][aria-pressed=true]{border-color:var(--auto);background:var(--auto-tinta);color:var(--auto)}
+.mezzo[data-valore=altro][aria-pressed=true]{border-color:var(--altro);background:var(--altro-tinta)}
+.segmenti.ar{margin-top:10px;background:var(--bus-tinta)}
+.segmenti.ar button{color:var(--bus)}
+.segmenti.ar button[aria-pressed=true]{background:var(--bus);color:#fff}
+
+.contatore{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.contatore b{display:block;font-size:15px}
+.contatore small{color:var(--grigio);font-size:13px}
+.pm{display:flex;align-items:center;gap:6px}
+.pm button{width:46px;height:46px;border-radius:50%;border:2px solid var(--linea);font-size:24px;font-weight:500;line-height:1;display:grid;place-items:center}
+.pm button:active{background:var(--tenue)}
+.pm button:disabled{opacity:.3}
+.pm button[data-azione=piu]{border-color:var(--bus);color:var(--bus)}
+.pm output{min-width:32px;text-align:center;font-size:26px;font-weight:800}
+
+.totale{display:flex;align-items:center;justify-content:space-between;padding:4px 6px 0;color:var(--grigio);font-weight:600}
+.totale strong{font-size:40px;line-height:1;color:var(--bus);font-weight:900;letter-spacing:-.03em}
+.link-tenue{display:block;margin:22px auto 0;color:var(--grigio);font-size:13px;text-decoration:underline;text-underline-offset:3px}
+
+/* calendario */
+.cal-testa{display:grid;grid-template-columns:48px 1fr 48px;align-items:center;text-align:center;margin:4px 0 8px}
+.cal-testa h2{margin:0;font-size:22px;letter-spacing:-.02em}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+.cal-int{text-align:center;font-size:11px;font-weight:700;color:var(--grigio);padding-bottom:2px}
+.cal-g{aspect-ratio:1;border-radius:11px;position:relative;background:var(--carta);border:1px solid var(--linea);
+  display:flex;align-items:flex-start;justify-content:flex-start;padding:5px 6px;font-weight:700;font-size:14px}
+.cal-g.vuota{background:none;border:0}
+.cal-g:disabled{opacity:.35}
+.cal-g.pullman{background:var(--bus-tinta);border-color:transparent;color:var(--bus)}
+.cal-g.macchina{background:var(--auto-tinta);border-color:transparent;color:var(--auto)}
+.cal-g.altro{background:var(--altro-tinta);border-color:transparent}
+.cal-g.libero{background:repeating-linear-gradient(135deg,var(--tenue) 0 5px,transparent 5px 10px);border-color:var(--linea);color:var(--grigio)}
+.cal-g.manca{border:1.5px dashed var(--rosso)}
+.cal-g.oggi{box-shadow:inset 0 0 0 2px var(--inch)}
+.cal-g .cc{position:absolute;right:5px;bottom:4px;min-width:18px;height:18px;padding:0 4px;border-radius:9px;background:var(--bus);
+  color:#fff;font-size:11px;font-weight:800;display:grid;place-items:center}
+.legenda{display:flex;flex-wrap:wrap;gap:6px 14px;margin:14px 2px;font-size:12px;color:var(--grigio);font-weight:600}
+.legenda span{display:flex;align-items:center;gap:6px}
+.legenda i{width:12px;height:12px;border-radius:4px;display:inline-block}
+
+/* conti */
+.vista h2.titolo{font-size:26px;letter-spacing:-.025em;margin:8px 2px 14px}
+.eroe{text-align:center;padding:20px 16px 16px}
+.eroe .sopra{margin:0;font-size:13px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--grigio)}
+.eroe .cifra{margin:6px 0 0;font-size:46px;font-weight:900;letter-spacing:-.035em;line-height:1.05}
+.eroe .sotto{margin:4px 0 16px;font-weight:600}
+.eroe.bene .cifra{color:var(--verde)} .eroe.male .cifra{color:var(--rosso)}
+.confronto{display:grid;grid-template-columns:1fr 1fr;gap:8px;text-align:left}
+.confronto div{background:var(--tenue);border-radius:12px;padding:10px 12px}
+.confronto span{display:block;font-size:12px;font-weight:700;color:var(--grigio)}
+.confronto b{display:block;font-size:20px;letter-spacing:-.02em;margin:2px 0}
+.confronto small{display:block;font-size:12px;color:var(--grigio);line-height:1.3}
+.nota-box{margin:12px 0 0;padding:9px 12px;border-radius:11px;font-size:13px;text-align:left;line-height:1.35}
+.nota-box.giallo{background:color-mix(in srgb,var(--giallo) 14%,transparent);color:var(--inch)}
+.nota-box.rosso{background:var(--rosso-tinta)}
+.scheda p{margin:0 0 8px}
+.scheda p:last-child{margin-bottom:0}
+.grande{font-size:17px}
+.metro{position:relative;height:12px;border-radius:6px;background:var(--tenue);margin:14px 0 22px}
+.metro .riempi{position:absolute;inset:0 auto 0 0;border-radius:6px;background:var(--bus)}
+.metro .tacca{position:absolute;top:-5px;bottom:-5px;width:3px;margin-left:-1.5px;border-radius:2px;background:var(--inch)}
+.metro .tacca::after{content:"pari";position:absolute;top:24px;left:50%;transform:translateX(-50%);font-size:11px;font-weight:700;color:var(--grigio)}
+.verdetto{font-weight:700}
+.verdetto.bene{color:var(--verde)} .verdetto.male{color:var(--rosso)}
+.pila{display:flex;height:14px;border-radius:7px;overflow:hidden;background:var(--tenue);margin:4px 0 12px}
+.pila div{height:100%}
+.righe{display:grid;gap:7px}
+.riga{display:grid;grid-template-columns:22px 1fr auto 46px;align-items:center;gap:8px;font-size:15px}
+.riga .q{font-weight:800;text-align:right}
+.riga .p{color:var(--grigio);font-size:13px;text-align:right}
+.tabella{width:100%;border-collapse:collapse;font-size:14px}
+.tabella th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--grigio);text-align:right;font-weight:700;padding:0 0 6px}
+.tabella th:first-child,.tabella td:first-child{text-align:left}
+.tabella td{text-align:right;padding:8px 0;border-top:1px solid var(--linea)}
+.tabella td.pos{color:var(--verde);font-weight:700} .tabella td.neg{color:var(--rosso);font-weight:700}
+.piccola{font-size:13px;color:var(--grigio)}
+
+/* impostazioni */
+.campo{display:block;margin-bottom:12px}
+.campo>span{display:block;font-size:13px;font-weight:700;color:var(--grigio);margin:0 0 5px 2px}
+.campo input{width:100%;height:46px;border-radius:12px;border:1px solid var(--linea);background:var(--fondo);color:var(--inch);
+  padding:0 12px;font:inherit;font-size:17px;-webkit-appearance:none;appearance:none}
+.campo input:focus{outline:2px solid var(--bus);outline-offset:-1px}
+.due{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+.campo input{min-width:0;max-width:100%}
+.campo input[type=date]{font-size:16px;padding:0 10px}
+.campo input[type=date]::-webkit-date-and-time-value{text-align:left}
+.bottoni{display:flex;gap:8px;flex-wrap:wrap}
+.primario,.secondario{height:44px;padding:0 16px;border-radius:12px;font-weight:700}
+.primario{background:var(--bus);color:#fff}
+.secondario{background:var(--tenue)}
+.esito{font-size:14px;font-weight:600;margin:10px 0 0!important}
+.esito.ok{color:var(--verde)} .esito.ko{color:var(--rosso)}
+.scheda a{color:var(--bus);font-weight:700}
+.scorciatoie{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:8px}
+.scorciatoie li{display:flex;align-items:center;gap:10px;justify-content:space-between;padding:8px 10px;background:var(--tenue);border-radius:11px}
+.scorciatoie b{display:block;font-size:14px}
+.scorciatoie code{display:block;font-family:var(--mono);font-size:11px;color:var(--grigio);word-break:break-all}
+.scorciatoie button{flex:none;height:34px;padding:0 12px;border-radius:9px;background:var(--carta);font-size:13px;font-weight:700}
+.versione{text-align:center;font-size:12px;color:var(--grigio);margin-top:18px}
+
+/* barra in basso */
+.barra{position:fixed;left:0;right:0;bottom:0;z-index:5;display:flex;justify-content:center;
+  background:color-mix(in srgb,var(--fondo) 86%,transparent);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);
+  border-top:1px solid var(--linea);padding-bottom:env(safe-area-inset-bottom)}
+.barra div{display:grid;grid-template-columns:repeat(4,1fr);width:100%;max-width:480px}
+.barra button{display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 0 7px;font-size:11px;font-weight:650;color:var(--grigio)}
+.barra svg{width:24px;height:24px}
+.barra button[aria-current=page]{color:var(--bus)}
+
+.avviso{position:fixed;left:50%;bottom:calc(76px + env(safe-area-inset-bottom));z-index:9;transform:translate(-50%,20px);
+  max-width:calc(100% - 32px);width:max-content;background:var(--inch);color:var(--fondo);padding:11px 16px;border-radius:13px;
+  font-size:14px;font-weight:600;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s}
+.avviso.su{opacity:1;transform:translate(-50%,0)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="testata">
+    <div class="marchio">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="var(--bus)"/>
+        <g transform="rotate(-10 16 16)"><rect x="5.5" y="9.5" width="21" height="13" rx="2.2" fill="#fff"/>
+        <path d="M20.5 10.5v11" stroke="var(--bus)" stroke-width="1" stroke-dasharray="1.6 1.4"/>
+        <circle cx="12.6" cy="16" r="3.9" fill="none" stroke="var(--bus)" stroke-width="1.5"/>
+        <path d="M10.9 16.1l1.2 1.2 2.3-2.5" fill="none" stroke="var(--bus)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></g></svg>
+      <span>Timbro</span>
+    </div>
+    <div class="testata-dx">
+      <button class="torna-oggi" data-azione="oggi" id="btnOggi" hidden>Oggi</button>
+      <button class="sync" id="sync" data-vai="impostazioni"><i></i><span>…</span></button>
+    </div>
+  </header>
+
+  <main>
+    <!-- GIORNO -->
+    <section class="vista" id="v-giorno">
+      <div class="nav-data">
+        <button class="freccia" data-azione="prima" aria-label="Giorno prima">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+        <div>
+          <div class="data-etichetta" id="dEtichetta"></div>
+          <div class="data-grande" id="dGrande"></div>
+          <span class="data-stato" id="dStato"></span>
+        </div>
+        <button class="freccia" data-azione="dopo" aria-label="Giorno dopo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button>
+        <div class="timbro-segno" id="timbroSegno">REGISTRATO</div>
+      </div>
+      <div class="settimana" id="settimana"></div>
+
+      <div class="scheda">
+        <div class="segmenti" id="segLavoro">
+          <button data-azione="lavoro" data-valore="1">💼 Lavoro</button>
+          <button data-azione="lavoro" data-valore="0">🏖️ Non lavoro</button>
+        </div>
+        <div id="bloccoMezzo">
+          <p class="domanda">Come sei andato al lavoro?</p>
+          <div class="mezzi">
+            <button class="mezzo" data-azione="mezzo" data-valore="pullman"><span class="emoji">🚌</span>Pullman</button>
+            <button class="mezzo" data-azione="mezzo" data-valore="macchina"><span class="emoji">🚗</span>Macchina</button>
+            <button class="mezzo" data-azione="mezzo" data-valore="altro"><span class="emoji">🤝</span>Altro<small>passaggio…</small></button>
+          </div>
+          <div class="segmenti ar" id="segAR">
+            <button data-azione="ar" data-valore="2">Andata e ritorno</button>
+            <button data-azione="ar" data-valore="1">Una corsa sola</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="scheda contatore">
+        <div><b id="extraTitolo">Altre corse in pullman</b><small id="extraNota"></small></div>
+        <div class="pm">
+          <button data-azione="meno" id="btnMeno" aria-label="Una corsa in meno">−</button>
+          <output id="extra">0</output>
+          <button data-azione="piu" aria-label="Una corsa in più">+</button>
+        </div>
+      </div>
+
+      <div class="totale"><span>Corse in pullman <span id="totaleQuando">oggi</span></span><strong id="totaleNum">0</strong></div>
+      <button class="link-tenue" data-azione="svuota" id="btnSvuota" hidden>Svuota questa giornata</button>
+    </section>
+
+    <!-- CALENDARIO -->
+    <section class="vista" id="v-calendario" hidden>
+      <div class="cal-testa">
+        <button class="freccia" data-azione="mese-prima" id="mesePrima" aria-label="Mese prima">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+        <h2 id="meseTitolo"></h2>
+        <button class="freccia" data-azione="mese-dopo" id="meseDopo" aria-label="Mese dopo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button>
+      </div>
+      <div class="cal" id="cal"></div>
+      <div class="legenda">
+        <span><i style="background:var(--bus-tinta);box-shadow:inset 0 0 0 2px var(--bus)"></i>Pullman</span>
+        <span><i style="background:var(--auto-tinta);box-shadow:inset 0 0 0 2px var(--auto)"></i>Macchina</span>
+        <span><i style="background:var(--altro-tinta);box-shadow:inset 0 0 0 2px var(--altro)"></i>Altro</span>
+        <span><i style="background:repeating-linear-gradient(135deg,var(--grigio) 0 2px,transparent 2px 4px);opacity:.6"></i>Non lavoro</span>
+        <span><i style="border:1.5px dashed var(--rosso)"></i>Da registrare</span>
+        <span><i style="background:var(--bus);border-radius:6px"></i>Corse in pullman</span>
+      </div>
+      <div class="scheda" id="meseRiepilogo"></div>
+    </section>
+
+    <!-- CONTI -->
+    <section class="vista" id="v-conti" hidden></section>
+
+    <!-- IMPOSTAZIONI -->
+    <section class="vista" id="v-impostazioni" hidden>
+      <h2 class="titolo">Impostazioni</h2>
+
+      <div class="scheda">
+        <h3>Abbonamento annuale</h3>
+        <label class="campo"><span>Prezzo pagato (€)</span>
+          <input id="iPrezzo" data-imp="prezzoAnnuale" data-tipo="numero" inputmode="decimal" autocomplete="off"></label>
+        <div class="nota-box giallo" id="notaPrezzo" style="margin:-4px 0 12px">Prezzo provvisorio: scrivi qui quello vero quando lo recuperi.</div>
+        <div class="due">
+          <label class="campo"><span>Valido dal</span><input type="date" id="iInizio" data-imp="inizioAbbonamento"></label>
+          <label class="campo"><span>Fino al</span><input type="date" id="iScadenza" data-imp="scadenzaAbbonamento"></label>
+        </div>
+        <p class="piccola">Con le due date i conti usano la durata vera e compare il conto alla rovescia al rinnovo.</p>
+      </div>
+
+      <div class="scheda">
+        <h3>Prezzi senza abbonamento</h3>
+        <div class="due">
+          <label class="campo"><span>Biglietto singolo (€)</span><input id="iSingolo" data-imp="singolo" data-tipo="numero" inputmode="decimal"></label>
+          <label class="campo"><span>Mensile (€)</span><input id="iMensile" data-imp="mensile" data-tipo="numero" inputmode="decimal"></label>
+          <label class="campo"><span>Carnet (€)</span><input id="iCarnet" data-imp="carnetPrezzo" data-tipo="numero" inputmode="decimal"></label>
+          <label class="campo"><span>Corse nel carnet</span><input id="iCarnetCorse" data-imp="carnetCorse" data-tipo="intero" inputmode="numeric"></label>
+        </div>
+        <label class="campo" style="margin-bottom:0"><span>Conto le corse dal</span><input type="date" id="iTraccia" data-imp="inizioTracciamento"></label>
+      </div>
+
+      <div class="scheda">
+        <h3>Salvataggio su GitHub</h3>
+        <p class="piccola" id="notaGit"></p>
+        <div class="due">
+          <label class="campo"><span>Utente</span><input id="gUtente" autocapitalize="off" autocorrect="off" spellcheck="false"></label>
+          <label class="campo"><span>Repository dati</span><input id="gRepo" autocapitalize="off" autocorrect="off" spellcheck="false"></label>
+        </div>
+        <label class="campo"><span>Token di accesso</span>
+          <input type="password" id="gToken" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off" placeholder="github_pat_…"></label>
+        <div class="bottoni">
+          <button class="primario" id="btnCollega">Collega e sincronizza</button>
+          <button class="secondario" id="btnScollega">Scollega</button>
+        </div>
+        <p class="esito" id="esitoGit"></p>
+        <p class="piccola" style="margin-top:10px">Il token resta solo su questo dispositivo. Crealo su
+          <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">GitHub ↗</a>
+          con accesso al solo repository dei dati e permesso <b>Contents: Read and write</b>.</p>
+      </div>
+
+      <div class="scheda">
+        <h3>Comandi Rapidi su iPhone</h3>
+        <p class="piccola">Un comando con l'azione «Apri URL» e uno di questi indirizzi registra la giornata di oggi con un tocco, o dicendolo a Siri.</p>
+        <ul class="scorciatoie" id="scorciatoie"></ul>
+      </div>
+
+      <div class="scheda">
+        <h3>I tuoi dati</h3>
+        <p class="piccola">Tutte le giornate registrate, da aprire in Excel.</p>
+        <button class="secondario" id="btnCsv">Scarica il file CSV</button>
+      </div>
+      <p class="versione" id="versione"></p>
+    </section>
+  </main>
+</div>
+
+<nav class="barra"><div>
+  <button data-vai="giorno"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="3"/><path d="M8 3v4M16 3v4M4 10h16"/><circle cx="12" cy="15" r="1.6" fill="currentColor" stroke="none"/></svg>Giorno</button>
+  <button data-vai="calendario"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="3"/><path d="M8 3v4M16 3v4M4 10h16M9 10v10M15 10v10M4 15h16"/></svg>Calendario</button>
+  <button data-vai="conti"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20V11M12 20V5M19 20v-6M3 20h18"/></svg>Conti</button>
+  <button data-vai="impostazioni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h9M17 7h3M4 12h3M11 12h9M4 17h11M19 17h1"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="17" r="2"/></svg>Impostazioni</button>
+</div></nav>
+<div class="avviso" id="avviso" role="status" aria-live="polite"></div>
+
+<script type="module">
+import * as M from './motore.js';
+import { creaSincro, allinea, ErroreGit } from './sincro.js';
+
+const VERSIONE_APP = '2026.11.07';
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+
+/* ---------- archivio locale (se Safari lo blocca, si lavora in memoria) ---------- */
+const memoria = {};
+const archivio = {
+  leggi(k) { try { return localStorage.getItem(k); } catch { return memoria[k] ?? null; } },
+  scrivi(k, v) { try { localStorage.setItem(k, v); } catch { memoria[k] = v; } },
+};
+const leggiJson = k => { try { return JSON.parse(archivio.leggi(k)); } catch { return null; } };
+const K = { stato: 'timbro.stato', git: 'timbro.github', mod: 'timbro.modificati' };
+
+let stato = (() => { const s = leggiJson(K.stato); return s && s.giorni ? M.normalizza(s) : M.statoVuoto(); })();
+let git = { utente: 'MxalfaxL', repo: 'timbro-dati', token: '', ...(leggiJson(K.git) || {}) };
+const modificati = new Set(leggiJson(K.mod) || []);
+const salvaStato = () => archivio.scrivi(K.stato, JSON.stringify(stato));
+const salvaMod = () => archivio.scrivi(K.mod, JSON.stringify([...modificati]));
+const salvaGit = () => archivio.scrivi(K.git, JSON.stringify(git));
+const imp = () => stato.impostazioni;
+
+let sel = M.oggi();
+let seguiOggi = true;         // se l'app resta aperta oltre la mezzanotte, torna su oggi
+let meseCal = M.meseDi(sel);
+let vista = 'giorno';
+
+/* ---------- formati ---------- */
+const it = (o) => new Intl.DateTimeFormat('it-IT', o);
+const fGiornoSett = it({ weekday: 'long' }), fDataLunga = it({ day: 'numeric', month: 'long' });
+const fCompleta = it({ weekday: 'long', day: 'numeric', month: 'long' }), fMese = it({ month: 'long', year: 'numeric' });
+const fMeseBreve = it({ month: 'short' }), fBreve = it({ day: 'numeric', month: 'long' });
+const fNomeFile = it({ day: 'numeric', month: 'long', year: 'numeric' });
+const fEuro = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' });
+const fNum1 = new Intl.NumberFormat('it-IT', { maximumFractionDigits: 1 });
+const euro = n => fEuro.format(Math.abs(n) < 0.005 ? 0 : n);
+const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+const INIZIALI = ['L', 'M', 'M', 'G', 'V', 'S', 'D'];
+const plur = (n, uno, molti) => `${n} ${n === 1 ? uno : molti}`;
+
+/* ---------- avvisi ---------- */
+let timerAvviso;
+function avvisa(testo, ms = 2200) {
+  const el = $('#avviso');
+  el.textContent = testo; el.classList.add('su');
+  clearTimeout(timerAvviso); timerAvviso = setTimeout(() => el.classList.remove('su'), ms);
+}
+function timbra() {
+  const el = $('#timbroSegno');
+  el.classList.remove('via'); void el.offsetWidth; el.classList.add('via');
+}
+
+/* ---------- modifiche ---------- */
+function modifica(azione, k = sel) {
+  const prima = stato.giorni[k];
+  if (azione.tipo === 'lavoro' && azione.valore && !M.esiste(prima)) return prima;   // è già "lavoro" di base
+  const dopo = M.applica(prima, azione);
+  stato.giorni[k] = dopo;
+  salvaStato();
+  modificati.add(k); salvaMod();
+  ridisegna();
+  if (!M.completo(prima) && M.completo(dopo) && k === sel && vista === 'giorno') timbra();
+  pianificaSincro();
+  return dopo;
+}
+
+function selezionaGiorno(k) {
+  const min = imp().inizioTracciamento, max = M.oggi();
+  sel = k < min ? min : k > max ? max : k;
+  seguiOggi = sel === M.oggi();
+  meseCal = M.meseDi(sel);
+  ridisegna();
+}
+
+/* ---------- disegno ---------- */
+function classeGiorno(g, k, oggiK) {
+  if (k > oggiK || k < imp().inizioTracciamento) return 'fuori';
+  if (M.esiste(g) && g.lavoro === false) return M.corseExtra(g) ? 'libero corse' : 'libero';
+  if (M.completo(g)) return g.mezzo;
+  return k < oggiK ? 'manca' : '';
+}
+
+function disegnaGiorno() {
+  const g = stato.giorni[sel], oggiK = M.oggi(), d = M.daChiave(sel);
+  const diff = M.giorniTra(sel, oggiK);
+  const rel = diff === 0 ? 'Oggi' : diff === 1 ? 'Ieri' : diff === 2 ? "L'altro ieri" : '';
+  $('#dEtichetta').textContent = rel ? `${rel} · ${fGiornoSett.format(d)}` : fGiornoSett.format(d);
+  $('#dGrande').textContent = fDataLunga.format(d) + (d.getFullYear() !== M.daChiave(oggiK).getFullYear() ? ' ' + d.getFullYear() : '');
+  const st = $('#dStato');
+  if (M.completo(g)) { st.textContent = '✓ Registrato'; st.className = 'data-stato ok'; }
+  else if (diff === 0) { st.textContent = 'Da registrare'; st.className = 'data-stato oggi'; }
+  else { st.textContent = 'Da registrare'; st.className = 'data-stato manca'; }
+
+  const lav = M.lavora(g), mezzo = M.esiste(g) ? g.mezzo : null;
+  $$('#segLavoro button').forEach(b => b.setAttribute('aria-pressed', String((b.dataset.valore === '1') === lav)));
+  $('#bloccoMezzo').hidden = !lav;
+  $$('.mezzo').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.valore === mezzo)));
+  $('#segAR').hidden = !(lav && mezzo === 'pullman');
+  const cl = M.esiste(g) && g.corseLavoro === 1 ? 1 : 2;
+  $$('#segAR button').forEach(b => b.setAttribute('aria-pressed', String(Number(b.dataset.valore) === cl)));
+
+  const extra = M.corseExtra(g);
+  $('#extra').textContent = extra;
+  $('#btnMeno').disabled = extra === 0;
+  $('#extraTitolo').textContent = lav ? 'Altre corse in pullman' : 'Corse in pullman';
+  $('#extraNota').textContent = lav ? 'uscite personali, oltre al lavoro' : 'uscite personali';
+  $('#totaleNum').textContent = M.corseTotali(g);
+  $('#totaleQuando').textContent = diff === 0 ? 'oggi' : diff === 1 ? 'ieri' : 'quel giorno';
+  $('#btnSvuota').hidden = !M.esiste(g);
+  $('#btnOggi').hidden = diff === 0;
+  $('[data-azione="prima"]').disabled = sel <= imp().inizioTracciamento;
+  $('[data-azione="dopo"]').disabled = sel >= oggiK;
+
+  const lun = M.lunediDi(sel);
+  let html = '';
+  for (let i = 0; i < 7; i++) {
+    const k = M.spostaGiorni(lun, i), gk = stato.giorni[k];
+    const classi = ['gg', classeGiorno(gk, k, oggiK), k === sel ? 'sel' : '', k === oggiK ? 'oggi' : ''].join(' ');
+    const fuori = k > oggiK || k < imp().inizioTracciamento;
+    html += `<button class="${classi}" data-giorno="${k}" ${fuori ? 'disabled' : ''} aria-label="${fCompleta.format(M.daChiave(k))}">`
+      + `<span class="gs">${INIZIALI[i]}</span><span class="gn">${M.daChiave(k).getDate()}</span><span class="segno"></span></button>`;
+  }
+  $('#settimana').innerHTML = html;
+}
+
+function disegnaCalendario() {
+  const [a, m] = meseCal.split('-').map(Number);
+  const primo = `${meseCal}-01`, ultimo = M.chiave(new Date(a, m, 0, 12));
+  const oggiK = M.oggi(), min = imp().inizioTracciamento;
+  $('#meseTitolo').textContent = cap(fMese.format(M.daChiave(primo)));
+  $('#mesePrima').disabled = primo <= min;
+  $('#meseDopo').disabled = ultimo >= oggiK;
+
+  let html = INIZIALI.map(x => `<div class="cal-int">${x}</div>`).join('');
+  let k = M.lunediDi(primo);
+  do {
+    for (let i = 0; i < 7; i++, k = M.spostaGiorni(k, 1)) {
+      if (M.meseDi(k) !== meseCal) { html += '<div class="cal-g vuota"></div>'; continue; }
+      const g = stato.giorni[k], n = M.corseTotali(g), fuori = k > oggiK || k < min;
+      html += `<button class="cal-g ${fuori ? '' : classeGiorno(g, k, oggiK)} ${k === oggiK ? 'oggi' : ''}" data-giorno="${k}" ${fuori ? 'disabled' : ''}`
+        + ` aria-label="${fCompleta.format(M.daChiave(k))}">${M.daChiave(k).getDate()}${n ? `<span class="cc">${n}</span>` : ''}</button>`;
+    }
+  } while (k <= ultimo);
+  $('#cal').innerHTML = html;
+
+  const da = primo < min ? min : primo, fino = ultimo > oggiK ? oggiK : ultimo;
+  const r = M.riepilogo(stato, da, fino);
+  $('#meseRiepilogo').innerHTML = r.giorni === 0 ? '<p class="piccola">Nessun giorno da contare in questo mese.</p>' : `
+    <h3>${cap(fMese.format(M.daChiave(primo)))}</h3>
+    <p><b>${plur(r.giorniLavoro, 'giorno', 'giorni')} di lavoro</b>: 🚌 ${r.pullman} · 🚗 ${r.macchina} · 🤝 ${r.altro}</p>
+    <p><b>${plur(r.corse, 'corsa', 'corse')} in pullman</b> <span class="piccola">(${r.corseLavoro} per lavoro, ${r.corseExtra} extra)</span></p>
+    ${r.daRegistrare ? `<p style="color:var(--rosso);font-weight:600">${plur(r.daRegistrare, 'giorno', 'giorni')} ancora da registrare</p>` : '<p class="piccola">Tutti i giorni registrati ✓</p>'}`;
+}
+
+function disegnaConti() {
+  const c = M.conti(stato), t = c.tot, i = c.imp;
+  const el = $('#v-conti');
+  if (t.giorni === 0) {
+    el.innerHTML = `<h2 class="titolo">Conti</h2><div class="scheda"><p>Il conteggio parte il ${fBreve.format(M.daChiave(c.da))}.</p></div>`;
+    return;
+  }
+  const bene = c.risparmio >= 0;
+  const usaMensile = c.mesi.some(m => m.conMensile);
+  const ritmoOk = c.corseSettimana >= c.pareggioSettimana;
+  const scala = Math.max(c.pareggioSettimana * 2, c.corseSettimana * 1.1, 1);
+  const tot = t.giorniLavoro || 1;
+  const pc = n => Math.round(n / tot * 100);
+
+  el.innerHTML = `
+  <h2 class="titolo">Conti</h2>
+
+  <div class="scheda eroe ${bene ? 'bene' : 'male'}">
+    <p class="sopra">Dal ${fBreve.format(M.daChiave(c.da))} a oggi</p>
+    <p class="cifra">${bene ? '' : '−'}${euro(Math.abs(c.risparmio))}</p>
+    <p class="sotto">${bene ? "risparmiati grazie all'abbonamento" : "spesi in più con l'abbonamento"}</p>
+    <div class="confronto">
+      <div><span>Senza abbonamento</span><b>${euro(c.migliore)}</b>
+        <small>${plur(t.corse, 'corsa', 'corse')} ${usaMensile ? 'tra carnet e mensile' : `col carnet, ${euro(c.prezzoCorsa)} l'una`}</small></div>
+      <div><span>Quota dell'annuale</span><b>${euro(c.quota)}</b>
+        <small>${plur(t.giorni, 'giorno', 'giorni')} su ${c.durata}, ${euro(c.quotaGiorno)} al giorno</small></div>
+    </div>
+    ${i.prezzoConfermato ? '' : `<div class="nota-box giallo">Prezzo dell'abbonamento provvisorio (${euro(i.prezzoAnnuale)}): metti quello vero in <b>Impostazioni</b>.</div>`}
+    ${t.daRegistrare ? `<div class="nota-box rosso">${plur(t.daRegistrare, 'giorno', 'giorni')} ancora da registrare: per ora contano zero corse.</div>` : ''}
+  </div>
+
+  <div class="scheda">
+    <h3>Quando l'annuale si ripaga</h3>
+    <p>Con <b>${Math.ceil(c.pareggioAnno)} corse l'anno</b>, cioè circa <b>${fNum1.format(c.pareggioSettimana)} a settimana</b>.</p>
+    <div class="metro"><div class="riempi" style="width:${Math.min(100, c.corseSettimana / scala * 100)}%;${ritmoOk ? '' : 'background:var(--rosso)'}"></div>
+      <div class="tacca" style="left:${c.pareggioSettimana / scala * 100}%"></div></div>
+    <p>Il tuo ritmo: <b>${fNum1.format(c.corseSettimana)} corse a settimana</b>, circa ${Math.round(c.proiezioneAnno)} l'anno.</p>
+    <p class="verdetto ${ritmoOk ? 'bene' : 'male'}">${ritmoOk
+      ? 'A questo ritmo l\'annuale conviene.'
+      : `A questo ritmo conviene il carnet: per pareggiare servono ${fNum1.format(c.pareggioSettimana - c.corseSettimana)} corse in più a settimana.`}</p>
+    ${t.registrati < 14 ? '<p class="piccola">Con meno di due settimane registrate il ritmo è ancora indicativo.</p>' : ''}
+    ${c.giorniAlRinnovo !== null ? `<p class="piccola">${c.giorniAlRinnovo >= 0
+      ? `Mancano <b>${plur(c.giorniAlRinnovo, 'giorno', 'giorni')}</b> alla scadenza (${fBreve.format(M.daChiave(i.scadenzaAbbonamento))}).`
+      : 'Abbonamento scaduto: aggiorna le date in Impostazioni.'}</p>` : ''}
+  </div>
+
+  <div class="scheda">
+    <h3>Come vai al lavoro</h3>
+    ${t.giorniLavoro ? `
+    <div class="pila">
+      <div style="width:${t.pullman / tot * 100}%;background:var(--bus)"></div>
+      <div style="width:${t.macchina / tot * 100}%;background:var(--auto)"></div>
+      <div style="width:${t.altro / tot * 100}%;background:var(--altro)"></div>
+    </div>
+    <div class="righe">
+      <div class="riga"><span>🚌</span><span>Pullman</span><span class="q">${plur(t.pullman, 'giorno', 'giorni')}</span><span class="p">${pc(t.pullman)}%</span></div>
+      <div class="riga"><span>🚗</span><span>Macchina</span><span class="q">${plur(t.macchina, 'giorno', 'giorni')}</span><span class="p">${pc(t.macchina)}%</span></div>
+      <div class="riga"><span>🤝</span><span>Altro</span><span class="q">${plur(t.altro, 'giorno', 'giorni')}</span><span class="p">${pc(t.altro)}%</span></div>
+    </div>` : '<p class="piccola">Ancora nessun giorno di lavoro registrato.</p>'}
+    <p class="piccola" style="margin-top:12px">${plur(t.nonLavoro, 'giorno', 'giorni')} senza lavoro. In pullman: ${plur(t.corseLavoro, 'corsa', 'corse')} per lavoro e ${t.corseExtra} extra.</p>
+  </div>
+
+  <div class="scheda">
+    <h3>Mese per mese</h3>
+    <table class="tabella">
+      <tr><th>Mese</th><th>Corse</th><th>Senza abb.</th><th>Quota</th><th>Esito</th></tr>
+      ${c.mesi.map(m => `<tr><td>${cap(fMeseBreve.format(M.daChiave(m.mese + '-01')))}${m.mese.slice(0, 4) !== c.a.slice(0, 4) ? ' ' + m.mese.slice(2, 4) : ''}</td>
+        <td>${m.corse}</td><td>${euro(m.migliore)}${m.conMensile ? '*' : ''}</td><td>${euro(m.quota)}</td>
+        <td class="${m.risparmio >= 0 ? 'pos' : 'neg'}">${m.risparmio >= 0 ? '+' : '−'}${euro(Math.abs(m.risparmio))}</td></tr>`).join('')}
+    </table>
+    <p class="piccola" style="margin-top:10px">«Senza abb.» è quello che avresti speso col carnet (${euro(c.prezzoCorsa)} a corsa)${usaMensile ? '; * = conveniva il mensile' : ''}.
+      Il mensile da ${euro(i.mensile)} conviene solo da ${c.mensileDa} corse in su nello stesso mese. «Esito» in verde: l'annuale ti ha fatto risparmiare.</p>
+  </div>`;
+}
+
+function disegnaImpostazioni() {
+  const i = imp();
+  const valori = { iPrezzo: i.prezzoAnnuale, iInizio: i.inizioAbbonamento, iScadenza: i.scadenzaAbbonamento,
+    iSingolo: i.singolo, iMensile: i.mensile, iCarnet: i.carnetPrezzo, iCarnetCorse: i.carnetCorse, iTraccia: i.inizioTracciamento };
+  for (const [id, v] of Object.entries(valori)) {
+    const inp = $('#' + id);
+    if (document.activeElement !== inp) inp.value = typeof v === 'number' ? (Number.isInteger(v) ? String(v) : v.toFixed(2).replace('.', ',')) : v;
+  }
+  $('#notaPrezzo').hidden = !!i.prezzoConfermato;
+  if (document.activeElement !== $('#gUtente')) $('#gUtente').value = git.utente;
+  if (document.activeElement !== $('#gRepo')) $('#gRepo').value = git.repo;
+  $('#gToken').placeholder = git.token ? '•••••• salvato su questo dispositivo' : 'github_pat_…';
+  $('#notaGit').textContent = git.token
+    ? `Le giornate si salvano nel repository privato ${git.utente}/${git.repo} e arrivano su tutti i dispositivi collegati.`
+    : 'Non collegato: per ora le giornate restano solo su questo dispositivo. Collegalo per averle anche sul computer.';
+  $('#btnScollega').hidden = !git.token;
+
+  const base = location.origin + location.pathname.replace(/index\.html$/, '');
+  const voci = [['pullman', 'Lavoro in pullman, andata e ritorno'], ['pullman1', 'Lavoro in pullman, una corsa'],
+    ['macchina', 'Lavoro in macchina'], ['altro', 'Lavoro con altro mezzo'], ['nonlavoro', 'Oggi non lavoro'], ['corsa', 'Una corsa extra in pullman']];
+  $('#scorciatoie').innerHTML = voci.map(([v, nome]) => `<li><div><b>${nome}</b><code>${base}?registra=${v}</code></div>`
+    + `<button data-azione="copia" data-testo="${base}?registra=${v}">Copia</button></li>`).join('');
+  $('#versione').textContent = `Timbro · versione ${VERSIONE_APP}`;
+}
+
+function ridisegna() {
+  disegnaSync();
+  if (vista === 'giorno') disegnaGiorno();
+  else if (vista === 'calendario') disegnaCalendario();
+  else if (vista === 'conti') disegnaConti();
+  else disegnaImpostazioni();
+}
+
+function vai(v) {
+  vista = v;
+  for (const s of $$('.vista')) s.hidden = s.id !== 'v-' + v;
+  $$('.barra button').forEach(b => b.dataset.vai === v ? b.setAttribute('aria-current', 'page') : b.removeAttribute('aria-current'));
+  ridisegna();
+  scrollTo(0, 0);
+}
+
+/* ---------- sincronizzazione con GitHub ---------- */
+const SYNC = {
+  locale: ['', 'Solo qui'], corso: ['giallo corso', 'Salvo…'], ok: ['verde', 'Salvato'],
+  offline: ['giallo', 'Offline, salvo dopo'], token: ['rosso', 'Token non valido'],
+  permessi: ['rosso', 'Repo non raggiungibile'], errore: ['rosso', 'Errore di salvataggio'],
+};
+let statoSync = 'locale', inCorso = false, ancora = false, timerSync;
+const collegato = () => !!(git.utente && git.repo && git.token);
+
+function disegnaSync() {
+  const s = collegato() ? statoSync : 'locale';
+  const [classe, testo] = SYNC[s];
+  const el = $('#sync');
+  el.className = 'sync ' + classe;
+  el.querySelector('span').textContent = testo;
+}
+function impostaSync(s) { statoSync = s; disegnaSync(); }
+function pianificaSincro(ms = 600) { clearTimeout(timerSync); timerSync = setTimeout(sincronizza, ms); }
+
+function messaggioCommit(chiavi) {
+  const giorni = chiavi.filter(k => k !== 'impostazioni').sort();
+  const parti = [];
+  if (giorni.length === 1) parti.push(`${fBreve.format(M.daChiave(giorni[0]))}: ${M.descrivi(stato.giorni[giorni[0]])}`);
+  else if (giorni.length > 1) parti.push(`${giorni.length} giornate aggiornate`);
+  if (chiavi.includes('impostazioni')) parti.push('impostazioni aggiornate');
+  return parti.join('; ') || 'allineamento dei dati';
+}
+
+async function sincronizza() {
+  if (!collegato()) { impostaSync('locale'); return; }
+  if (inCorso) { ancora = true; return; }
+  inCorso = true; impostaSync('corso');
+  const inviati = [...modificati];
+  try {
+    const unito = await allinea(stato, creaSincro(git), messaggioCommit(inviati));
+    const nuovo = M.unisci(stato, unito);        // le modifiche fatte durante l'attesa restano
+    if (M.canonico(nuovo) !== M.canonico(stato)) { stato = nuovo; salvaStato(); ridisegna(); }
+    inviati.forEach(k => modificati.delete(k)); salvaMod();
+    impostaSync('ok');
+  } catch (e) {
+    console.warn('Timbro, sincronizzazione:', e);
+    impostaSync(!(e instanceof ErroreGit) ? 'offline' : e.stato === 401 ? 'token' : (e.stato === 403 || e.stato === 404) ? 'permessi' : 'errore');
+  } finally {
+    inCorso = false;
+    if (ancora) { ancora = false; pianificaSincro(0); }
+  }
+}
+
+/* ---------- eventi ---------- */
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-azione],[data-vai],[data-giorno]');
+  if (!b || b.disabled) return;
+  if (b.dataset.vai) return vai(b.dataset.vai);
+  if (b.dataset.giorno) { selezionaGiorno(b.dataset.giorno); if (vista !== 'giorno') vai('giorno'); return; }
+  switch (b.dataset.azione) {
+    case 'prima': return selezionaGiorno(M.spostaGiorni(sel, -1));
+    case 'dopo': return selezionaGiorno(M.spostaGiorni(sel, 1));
+    case 'oggi': return selezionaGiorno(M.oggi());
+    case 'lavoro': return void modifica({ tipo: 'lavoro', valore: b.dataset.valore === '1' });
+    case 'mezzo': return void modifica({ tipo: 'mezzo', valore: b.dataset.valore, alterna: true });
+    case 'ar': return void modifica({ tipo: 'corseLavoro', valore: Number(b.dataset.valore) });
+    case 'piu': return void modifica({ tipo: 'extra', delta: 1 });
+    case 'meno': return void modifica({ tipo: 'extra', delta: -1 });
+    case 'svuota':
+      if (confirm(`Svuotare ${fCompleta.format(M.daChiave(sel))}?`)) modifica({ tipo: 'svuota' });
+      return;
+    case 'mese-prima': case 'mese-dopo': {
+      const [a, m] = meseCal.split('-').map(Number);
+      meseCal = M.meseDi(M.chiave(new Date(a, m - 1 + (b.dataset.azione === 'mese-dopo' ? 1 : -1), 1, 12)));
+      return disegnaCalendario();
+    }
+    case 'copia':
+      navigator.clipboard?.writeText(b.dataset.testo).then(() => avvisa('Indirizzo copiato'), () => avvisa('Copia non riuscita'));
+      return;
+  }
+});
+
+// scorrere col dito sulla giornata: a sinistra il giorno dopo, a destra quello prima
+let tocco = null;
+$('#v-giorno').addEventListener('touchstart', e => { const t = e.touches[0]; tocco = { x: t.clientX, y: t.clientY }; }, { passive: true });
+$('#v-giorno').addEventListener('touchend', e => {
+  if (!tocco) return;
+  const t = e.changedTouches[0], dx = t.clientX - tocco.x, dy = t.clientY - tocco.y;
+  tocco = null;
+  if (Math.abs(dx) > 70 && Math.abs(dy) < 45) selezionaGiorno(M.spostaGiorni(sel, dx < 0 ? 1 : -1));
+}, { passive: true });
+
+$$('[data-imp]').forEach(inp => inp.addEventListener('change', () => {
+  const campo = inp.dataset.imp;
+  let v = inp.value.trim();
+  if (inp.dataset.tipo) {
+    v = Number(v.replace(/\s|€/g, '').replace(',', '.'));
+    if (!Number.isFinite(v) || v <= 0 || (inp.dataset.tipo === 'intero' && !Number.isInteger(v))) {
+      avvisa('Valore non valido'); disegnaImpostazioni(); return;
+    }
+  }
+  if (campo === 'inizioTracciamento' && !v) { disegnaImpostazioni(); return; }
+  stato.impostazioni = { ...imp(), [campo]: v, ...(campo === 'prezzoAnnuale' ? { prezzoConfermato: true } : {}), t: Date.now() };
+  salvaStato(); modificati.add('impostazioni'); salvaMod();
+  if (sel < imp().inizioTracciamento) sel = imp().inizioTracciamento;
+  ridisegna(); pianificaSincro();
+  avvisa('Salvato');
+}));
+
+$('#btnCollega').addEventListener('click', async () => {
+  const esito = (testo, ok) => { const el = $('#esitoGit'); el.textContent = testo; el.className = 'esito ' + (ok ? 'ok' : ok === false ? 'ko' : ''); };
+  const token = $('#gToken').value.trim() || git.token;
+  if (!token) { esito('Incolla prima il token.', false); return; }
+  const prova = { utente: $('#gUtente').value.trim(), repo: $('#gRepo').value.trim(), token };
+  esito('Controllo l\'accesso…');
+  try {
+    const r = await creaSincro(prova).verifica();
+    git = prova; salvaGit(); $('#gToken').value = '';
+    esito(r.privato ? `✓ Collegato a ${r.nome}` : `✓ Collegato a ${r.nome}, ma attenzione: il repository è pubblico!`, r.privato);
+    disegnaImpostazioni();
+    await sincronizza();
+  } catch (e) {
+    esito('✗ ' + (e instanceof ErroreGit ? e.message : 'GitHub non raggiungibile: controlla la rete.'), false);
+  }
+});
+$('#btnScollega').addEventListener('click', () => {
+  if (!confirm('Scollegare questo dispositivo? Le giornate restano qui e su GitHub, ma smettono di sincronizzarsi.')) return;
+  git = { ...git, token: '' }; salvaGit(); impostaSync('locale'); disegnaImpostazioni();
+  $('#esitoGit').textContent = '';
+});
+
+$('#btnCsv').addEventListener('click', () => {
+  const righe = [['Data', 'Giorno', 'Lavoro', 'Mezzo', 'Corse per lavoro', 'Corse extra', 'Corse totali']];
+  for (const k of M.giorniDa(imp().inizioTracciamento, M.oggi())) {
+    const g = stato.giorni[k], d = M.daChiave(k), c = M.esiste(g);
+    righe.push([d.toLocaleDateString('it-IT'), fGiornoSett.format(d),
+      c ? (g.lavoro === false ? 'no' : 'sì') : '', c && g.lavoro !== false ? (g.mezzo || '') : '',
+      M.corseLavoro(g), M.corseExtra(g), M.corseTotali(g)]);
+  }
+  const csv = '﻿' + righe.map(r => r.join(';')).join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = `Timbro dati ${fNomeFile.format(new Date())}.csv`;
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+});
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible') return;
+  if (seguiOggi && sel !== M.oggi()) { sel = M.oggi(); meseCal = M.meseDi(sel); }
+  ridisegna(); sincronizza();
+});
+addEventListener('online', () => sincronizza());
+
+/* ---------- avvio ---------- */
+(function azioneDaUrl() {
+  const p = new URLSearchParams(location.search), nome = p.get('registra');
+  if (!nome) return;
+  history.replaceState(null, '', location.pathname);
+  const azione = M.AZIONI_URL[nome];
+  if (!azione) { setTimeout(() => avvisa(`Comando «${nome}» non riconosciuto`, 3500), 50); return; }
+  const g = modifica(azione, M.oggi());
+  setTimeout(() => { timbra(); avvisa('✓ Oggi: ' + M.descrivi(g), 3500); }, 50);
+})();
+vai('giorno');
+sincronizza();
+
+if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js');
+</script>
+</body>
+</html>
