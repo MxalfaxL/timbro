@@ -6,8 +6,9 @@ export const VERSIONE_DATI = 1;
 export const MEZZI = ['pullman', 'macchina', 'altro'];
 
 export const IMPOSTAZIONI_BASE = Object.freeze({
-  prezzoAnnuale: 210,            // provvisorio finché Marco non recupera il prezzo vero
+  prezzoAnnuale: 210,            // quello pagato (in promozione)
   prezzoConfermato: false,
+  prezzoListino: 370,            // l'annuale a prezzo pieno, se al rinnovo la promozione non c'è
   inizioAbbonamento: '',         // 'AAAA-MM-GG', facoltativo
   scadenzaAbbonamento: '',       // ultimo giorno valido, facoltativo: abilita il conto alla rovescia
   inizioTracciamento: '2026-11-01',
@@ -155,6 +156,10 @@ function somma(c, g) {
   }
 }
 
+/* Costo in un anno di un'opzione, facendo n corse a settimana. */
+export const costoAnno = (o, corseSettimana, durata = 365) =>
+  o.fisso != null ? o.fisso : o.perCorsa * corseSettimana * durata / 7;
+
 export function riepilogo(stato, da, a) {
   const c = contatore();
   if (a >= da) for (const k of giorniDa(da, a)) somma(c, stato.giorni[k]);
@@ -191,8 +196,26 @@ export function conti(stato, finoA = oggi()) {
   const corseSettimana = base ? tot.corse / base * 7 : 0;
   const pareggioAnno = imp.prezzoAnnuale / prezzoCorsa;
 
+  /* Tutte le opzioni a confronto. "fisso" = costo l'anno qualunque cosa fai,
+     "perCorsa" = si paga a corsa. anno: al ritmo attuale; periodo: nei giorni contati;
+     soglia: corse a settimana da cui un'opzione fissa costa meno del carnet. */
+  const settimane = durata / 7;
+  const listino = imp.prezzoListino > imp.prezzoAnnuale ? imp.prezzoListino : null;
+  const opzioni = [
+    { id: 'annuale', fisso: imp.prezzoAnnuale },
+    ...(listino ? [{ id: 'listino', fisso: listino }] : []),
+    { id: 'mensile', fisso: imp.mensile * 12 * durata / 365 },
+    { id: 'carnet', perCorsa: prezzoCorsa },
+    { id: 'singolo', perCorsa: imp.singolo },
+  ].map(o => ({
+    ...o,
+    anno: costoAnno(o, corseSettimana, durata),
+    periodo: o.fisso != null ? o.fisso * tot.giorni / durata : o.perCorsa * tot.corse,
+    soglia: o.fisso != null ? o.fisso / prezzoCorsa / settimane : null,
+  }));
+
   return {
-    imp, prezzoCorsa, durata, quotaGiorno, da, a, mesi, tot,
+    imp, prezzoCorsa, durata, quotaGiorno, da, a, mesi, tot, opzioni,
     carnet: tot.corse * prezzoCorsa,
     singoli: tot.corse * imp.singolo,
     migliore, quota, risparmio: migliore - quota,

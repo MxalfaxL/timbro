@@ -16,13 +16,14 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icona-180.png?v=2">
 <link rel="icon" type="image/png" href="icona-192.png?v=2">
-<link rel="modulepreload" href="motore.js">
-<link rel="modulepreload" href="sincro.js">
+<link rel="modulepreload" href="motore.js?v=2026.11.08-3">
+<link rel="modulepreload" href="sincro.js?v=2026.11.08-3">
 <style>
 :root{
   --fondo:#F5F2EC; --carta:#FFFFFF; --inch:#1C1E23; --grigio:#6C7078; --linea:#E6E0D6; --tenue:#EDE8DF;
   --bus:#D9530F; --bus-tinta:#FCE6D8; --auto:#3557D4; --auto-tinta:#E2E8FB; --altro:#7B828B; --altro-tinta:#E9EBEE;
   --verde:#22833A; --verde-tinta:#E0F2E4; --rosso:#C2352B; --rosso-tinta:#FAE3E1; --giallo:#B7791F;
+  --s-carnet:#2a78d6; --s-annuale:#eb6834; --s-mensile:#1baf7a; --s-singolo:#8a8f98;
   --r:18px; --ombra:0 1px 2px rgba(28,30,35,.05),0 6px 18px rgba(28,30,35,.05);
   --mono:ui-monospace,"SF Mono",Menlo,monospace;
 }
@@ -30,6 +31,7 @@
   --fondo:#121316; --carta:#1C1E22; --inch:#ECEDEF; --grigio:#9A9EA6; --linea:#2D3036; --tenue:#25282D;
   --bus:#FF8A45; --bus-tinta:#3B2417; --auto:#8199F3; --auto-tinta:#1F2642; --altro:#A3A9B1; --altro-tinta:#2B2E34;
   --verde:#52C870; --verde-tinta:#173020; --rosso:#FF6E61; --rosso-tinta:#3B1D1B; --giallo:#E7B04F;
+  --s-carnet:#3987e5; --s-annuale:#d95926; --s-mensile:#199e70; --s-singolo:#8f949c;
   --ombra:0 1px 2px rgba(0,0,0,.3);
 }}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -195,6 +197,57 @@ button:disabled{cursor:default}
 .tabella td.pos{color:var(--verde);font-weight:700} .tabella td.neg{color:var(--rosso);font-weight:700}
 .piccola{font-size:13px;color:var(--grigio)}
 
+/* conti: classifica, grafico, scenari (colori validati con il validatore dataviz, chiaro e scuro) */
+.classifica{list-style:none;margin:12px 0;padding:0;display:grid;gap:14px}
+.opz-testa{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.opz-nome{font-weight:700;font-size:15px}
+.opz-anno{font-size:18px;font-weight:800;letter-spacing:-.02em}
+.opz-barra{height:8px;border-radius:4px;background:var(--tenue);margin:6px 0 5px;overflow:hidden}
+.opz-barra i{display:block;height:100%;border-radius:4px}
+.opz-barra i.s-annuale{background:var(--s-annuale)}
+.opz-barra i.s-listino{background:repeating-linear-gradient(135deg,var(--s-annuale) 0 3px,transparent 3px 6px);box-shadow:inset 0 0 0 1.5px var(--s-annuale)}
+.opz-barra i.s-mensile{background:var(--s-mensile)}
+.opz-barra i.s-carnet{background:var(--s-carnet)}
+.opz-barra i.s-singolo{background:var(--s-singolo)}
+.opz-piede{display:flex;justify-content:space-between;gap:10px;font-size:12px;color:var(--grigio);line-height:1.3}
+.opz-piede span:last-child{text-align:right;white-space:nowrap}
+.tag{font-style:normal;font-size:11px;font-weight:700;color:var(--bus);background:var(--bus-tinta);padding:1px 7px;border-radius:99px;margin-left:6px;vertical-align:2px}
+.esito-ok{color:var(--verde)}
+.legenda-graf{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;font-weight:600;color:var(--grigio);margin:10px 0 4px}
+.legenda-graf span{display:flex;align-items:center;gap:5px}
+.sw{display:inline-block;width:14px;height:3px;border-radius:2px;flex:none}
+.sw.s-annuale{background:var(--s-annuale)}
+.sw.s-listino{background:repeating-linear-gradient(90deg,var(--s-annuale) 0 4px,transparent 4px 7px)}
+.sw.s-mensile{background:var(--s-mensile)}
+.sw.s-carnet{background:var(--s-carnet)}
+.sw.tu{width:0;height:12px;border-left:1.5px dashed var(--inch);border-radius:0}
+.grafico{position:relative}
+.grafico svg{display:block;width:100%;height:auto;touch-action:pan-y;overflow:visible;-webkit-user-select:none;user-select:none}
+.grafico .griglia{stroke:var(--linea);stroke-width:1}
+.grafico .asse{font-size:10px;fill:var(--grigio)}
+.grafico .linea{stroke-width:2;fill:none;stroke-linecap:round}
+.grafico .linea.s-annuale,.grafico .linea.s-listino{stroke:var(--s-annuale)}
+.grafico .linea.s-listino{stroke-dasharray:6 4}
+.grafico .linea.s-mensile{stroke:var(--s-mensile)}
+.grafico .linea.s-carnet{stroke:var(--s-carnet)}
+.grafico .punto{stroke:var(--carta);stroke-width:2}
+.grafico .punto.s-annuale,.grafico .punto.s-listino{fill:var(--s-annuale)}
+.grafico .punto.s-mensile{fill:var(--s-mensile)}
+.grafico .tu{stroke:var(--inch);stroke-width:1.5;stroke-dasharray:3 3}
+.grafico .tu-testo{font-size:11px;font-weight:800;fill:var(--inch)}
+.grafico .etichetta{font-size:11px;font-weight:650;fill:var(--inch)}
+.grafico .mirino{stroke:var(--grigio);stroke-width:1}
+.grafico .sensibile{fill:transparent;cursor:crosshair}
+.sugg{position:absolute;top:0;min-width:156px;background:var(--carta);border:1px solid var(--linea);border-radius:11px;padding:8px 10px;
+  font-size:12px;box-shadow:0 6px 18px rgba(0,0,0,.16);pointer-events:none}
+.sugg>b{display:block;margin-bottom:2px}
+.sugg div{display:grid;grid-template-columns:14px 1fr auto;gap:7px;align-items:center;margin-top:3px}
+.scenario{border-radius:12px;padding:10px 12px;margin-bottom:8px;background:var(--tenue)}
+.scen-testa{display:flex;justify-content:space-between;gap:8px;font-weight:700;margin-bottom:3px}
+.scenario.bene .scen-testa b{color:var(--verde)}
+.scenario.male .scen-testa b{color:var(--rosso)}
+.scenario p{font-size:14px;margin:0!important}
+
 /* impostazioni */
 .campo{display:block;margin-bottom:12px}
 .campo>span{display:block;font-size:13px;font-weight:700;color:var(--grigio);margin:0 0 5px 2px}
@@ -343,6 +396,8 @@ button:disabled{cursor:default}
         <label class="campo"><span>Prezzo pagato (€)</span>
           <input id="iPrezzo" data-imp="prezzoAnnuale" data-tipo="numero" inputmode="decimal" autocomplete="off"></label>
         <div class="nota-box giallo" id="notaPrezzo" style="margin:-4px 0 12px">Prezzo provvisorio: scrivi qui quello vero quando lo recuperi.</div>
+        <label class="campo"><span>Prezzo pieno, senza promozione (€)</span>
+          <input id="iListino" data-imp="prezzoListino" data-tipo="numero" inputmode="decimal" autocomplete="off"></label>
         <div class="due">
           <label class="campo"><span>Valido dal</span><input type="date" id="iInizio" data-imp="inizioAbbonamento"></label>
           <label class="campo"><span>Fino al</span><input type="date" id="iScadenza" data-imp="scadenzaAbbonamento"></label>
@@ -405,10 +460,10 @@ button:disabled{cursor:default}
 <div class="avviso" id="avviso" role="status" aria-live="polite"></div>
 
 <script type="module">
-import * as M from './motore.js';
-import { creaSincro, allinea, ErroreGit } from './sincro.js';
+import * as M from './motore.js?v=2026.11.08-3';
+import { creaSincro, allinea, ErroreGit } from './sincro.js?v=2026.11.08-3';
 
-const VERSIONE_APP = '2026.11.08-2';
+const VERSIONE_APP = '2026.11.08-3';
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 
@@ -562,6 +617,89 @@ function disegnaCalendario() {
     ${r.daRegistrare ? `<p style="color:var(--rosso);font-weight:600">${plur(r.daRegistrare, 'giorno', 'giorni')} ancora da registrare</p>` : '<p class="piccola">Tutti i giorni registrati ✓</p>'}`;
 }
 
+const fEuroTondo = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
+const euroT = n => fEuroTondo.format(Math.round(n));
+const NOMI = {
+  annuale: { nome: 'Annuale in promozione', corto: i => `Annuale ${Math.round(i.prezzoAnnuale)}`, dett: i => `${euroT(i.prezzoAnnuale)} l'anno, quello che hai` },
+  listino: { nome: 'Annuale a prezzo pieno', corto: i => `Annuale ${Math.round(i.prezzoListino)}`, dett: i => `${euroT(i.prezzoListino)} l'anno, senza promozione` },
+  mensile: { nome: 'Mensile', corto: () => 'Mensile', dett: i => `${euro(i.mensile)} al mese` },
+  carnet: { nome: 'Carnet', corto: () => 'Carnet', dett: (i, c) => `${euroT(i.carnetPrezzo)} ogni ${i.carnetCorse} corse, ${euro(c.prezzoCorsa)} l'una` },
+  singolo: { nome: 'Biglietto singolo', corto: () => 'Singolo', dett: i => `${euro(i.singolo)} a corsa` },
+};
+
+/* ---------- grafico "dove conviene cosa": costo l'anno secondo le corse a settimana ---------- */
+const GEOM = { W: 330, H: 228, l: 40, r: 74, t: 22, b: 36 };
+function scalaGrafico(c) {
+  const fissi = c.opzioni.filter(x => x.fisso != null);
+  const carnet = c.opzioni.find(x => x.id === 'carnet');
+  const xmax = Math.max(6, Math.ceil(Math.max(...fissi.map(x => x.soglia), c.corseSettimana) * 1.2));
+  const grezzo = Math.max(M.costoAnno(carnet, xmax, c.durata), ...fissi.map(x => x.anno));
+  const passoY = grezzo > 700 ? 200 : 100;
+  const ymax = Math.ceil(grezzo * 1.03 / passoY) * passoY;
+  const { W, H, l, r, t, b } = GEOM, pw = W - l - r, ph = H - t - b;
+  return { fissi, carnet, xmax, ymax, passoY, pw, ph,
+    X: v => +(l + v / xmax * pw).toFixed(1), Y: v => +(t + ph - v / ymax * ph).toFixed(1) };
+}
+
+function graficoSoglie(c) {
+  const s = scalaGrafico(c), { W, H, l, t } = GEOM, i = c.imp;
+  let g = '';
+  for (let y = 0; y <= s.ymax; y += s.passoY) {
+    g += `<line class="griglia" x1="${l}" x2="${l + s.pw}" y1="${s.Y(y)}" y2="${s.Y(y)}"/>`
+      + `<text class="asse" x="${l - 6}" y="${s.Y(y) + 3.5}" text-anchor="end">${y} €</text>`;
+  }
+  const passoX = s.xmax > 10 ? 2 : 1;
+  for (let x = 0; x <= s.xmax; x += passoX) g += `<text class="asse" x="${s.X(x)}" y="${t + s.ph + 15}" text-anchor="middle">${x}</text>`;
+  g += `<text class="asse" x="${l + s.pw}" y="${t + s.ph + 31}" text-anchor="end">corse a settimana</text>`;
+  for (const f of s.fissi) g += `<line class="linea s-${f.id}" x1="${l}" x2="${l + s.pw}" y1="${s.Y(f.anno)}" y2="${s.Y(f.anno)}"/>`;
+  const fineCarnet = M.costoAnno(s.carnet, s.xmax, c.durata);
+  g += `<line class="linea s-carnet" x1="${s.X(0)}" y1="${s.Y(0)}" x2="${s.X(s.xmax)}" y2="${s.Y(fineCarnet)}"/>`;
+  for (const f of s.fissi) if (f.soglia <= s.xmax) g += `<circle class="punto s-${f.id}" cx="${s.X(f.soglia)}" cy="${s.Y(f.anno)}" r="4.5"/>`;
+  const xt = s.X(Math.min(c.corseSettimana, s.xmax));
+  g += `<line class="tu" x1="${xt}" x2="${xt}" y1="${t - 4}" y2="${t + s.ph}"/>`
+    + `<text class="tu-testo" x="${xt}" y="${t - 9}" text-anchor="middle">tu · ${fNum1.format(c.corseSettimana)}</text>`;
+  const etichette = [...s.fissi.map(f => ({ id: f.id, y: s.Y(f.anno) })), { id: 'carnet', y: s.Y(fineCarnet) }].sort((a, b) => a.y - b.y);
+  for (let k = 1; k < etichette.length; k++) if (etichette[k].y - etichette[k - 1].y < 13) etichette[k].y = etichette[k - 1].y + 13;
+  for (const e of etichette) g += `<text class="etichetta" x="${l + s.pw + 6}" y="${e.y + 4}">${NOMI[e.id].corto(i)}</text>`;
+  g += `<line class="mirino" id="mirino" x1="0" x2="0" y1="${t}" y2="${t + s.ph}" visibility="hidden"/>`
+    + `<rect class="sensibile" x="${l}" y="${t - 4}" width="${s.pw}" height="${s.ph + 4}"/>`;
+  const legenda = [...s.fissi.map(f => f.id), 'carnet']
+    .map(id => `<span><i class="sw s-${id}"></i>${NOMI[id].corto(i)}</span>`).join('')
+    + '<span><i class="sw tu"></i>il tuo ritmo</span>';
+  return `<div class="legenda-graf">${legenda}</div>
+    <div class="grafico"><svg id="svgSoglie" viewBox="0 0 ${W} ${H}" role="img"
+      aria-label="Costo in un anno di ogni opzione secondo le corse a settimana">${g}</svg>
+      <div class="sugg" id="sugg" hidden></div></div>`;
+}
+
+function attivaGrafico(c) {
+  const svg = $('#svgSoglie');
+  if (!svg) return;
+  const s = scalaGrafico(c), mir = $('#mirino'), sugg = $('#sugg');
+  const mostra = e => {
+    const r = svg.getBoundingClientRect();
+    const xv = ((e.clientX - r.left) / r.width * GEOM.W - GEOM.l) / s.pw * s.xmax;
+    const v = Math.min(s.xmax, Math.max(0, Math.round(xv * 2) / 2));
+    const px = s.X(v);
+    mir.setAttribute('x1', px); mir.setAttribute('x2', px); mir.setAttribute('visibility', 'visible');
+    const righe = c.opzioni.filter(o => o.id !== 'singolo')
+      .map(o => ({ id: o.id, costo: M.costoAnno(o, v, c.durata) })).sort((a, b) => a.costo - b.costo);
+    sugg.innerHTML = `<b>${fNum1.format(v)} corse a settimana</b>`
+      + righe.map((x, n) => `<div><i class="sw s-${x.id}"></i><span>${NOMI[x.id].corto(c.imp)}${n === 0 ? ' ✓' : ''}</span><b>${euroT(x.costo)}</b></div>`).join('');
+    sugg.hidden = false;
+    const aDestra = px < GEOM.l + s.pw / 2;
+    sugg.style.left = aDestra ? 'auto' : '0';
+    sugg.style.right = aDestra ? '0' : 'auto';
+  };
+  svg.addEventListener('pointerdown', mostra);
+  svg.addEventListener('click', mostra);
+  svg.addEventListener('pointermove', e => { if (e.pointerType === 'mouse' || e.buttons) mostra(e); });
+  svg.addEventListener('pointerleave', e => {
+    if (e.pointerType !== 'mouse') return;
+    sugg.hidden = true; mir.setAttribute('visibility', 'hidden');
+  });
+}
+
 function disegnaConti() {
   const c = M.conti(stato), t = c.tot, i = c.imp;
   const el = $('#v-conti');
@@ -571,10 +709,29 @@ function disegnaConti() {
   }
   const bene = c.risparmio >= 0;
   const usaMensile = c.mesi.some(m => m.conMensile);
-  const ritmoOk = c.corseSettimana >= c.pareggioSettimana;
-  const scala = Math.max(c.pareggioSettimana * 2, c.corseSettimana * 1.1, 1);
   const tot = t.giorniLavoro || 1;
   const pc = n => Math.round(n / tot * 100);
+  const o = id => c.opzioni.find(x => x.id === id);
+  const ordinate = [...c.opzioni].sort((a, b) => a.anno - b.anno);
+  const maxAnno = Math.max(...ordinate.map(x => x.anno));
+  const ritmo = fNum1.format(c.corseSettimana);
+  const senzaAnnuale = [o('carnet'), o('mensile')].sort((a, b) => a.anno - b.anno)[0];
+  const alt = senzaAnnuale.id === 'carnet' ? 'il carnet' : 'il mensile';
+
+  const scenario = (titolo, prezzo) => {
+    const soglia = prezzo / c.prezzoCorsa / (c.durata / 7);
+    const conviene = senzaAnnuale.anno > prezzo;
+    return `<div class="scenario ${conviene ? 'bene' : 'male'}">
+      <div class="scen-testa"><span>${titolo}</span><b>${conviene ? '✓ Rinnova' : '✗ Meglio ' + alt}</b></div>
+      <p>Conviene da <b>${fNum1.format(soglia)} corse a settimana</b> (${Math.ceil(soglia * c.durata / 7)} l'anno), tu ne fai ${ritmo}.
+      ${conviene ? `Spendi circa ${euroT(senzaAnnuale.anno - prezzo)} in meno che con ${alt}.`
+                 : `Con ${alt} spenderesti circa ${euroT(senzaAnnuale.anno)} l'anno, ${euroT(prezzo - senzaAnnuale.anno)} in meno.`}</p>
+    </div>`;
+  };
+  const a = o('annuale'), l = o('listino'), m = o('mensile');
+  const soglie = `Sotto ${fNum1.format(a.soglia)} corse a settimana conviene il carnet, da lì l'annuale a ${euroT(a.anno)}.`
+    + (l ? ` A ${euroT(l.anno)} ne servirebbero ${fNum1.format(l.soglia)}.` : '')
+    + ` Il mensile batte il carnet solo da ${fNum1.format(m.soglia)}, ma costa sempre più dell'annuale.`;
 
   el.innerHTML = `
   <h2 class="titolo">Conti</h2>
@@ -594,15 +751,31 @@ function disegnaConti() {
   </div>
 
   <div class="scheda">
-    <h3>Quando l'annuale si ripaga</h3>
-    <p>Con <b>${Math.ceil(c.pareggioAnno)} corse l'anno</b>, cioè circa <b>${fNum1.format(c.pareggioSettimana)} a settimana</b>.</p>
-    <div class="metro"><div class="riempi" style="width:${Math.min(100, c.corseSettimana / scala * 100)}%;${ritmoOk ? '' : 'background:var(--rosso)'}"></div>
-      <div class="tacca" style="left:${c.pareggioSettimana / scala * 100}%"></div></div>
-    <p>Il tuo ritmo: <b>${fNum1.format(c.corseSettimana)} corse a settimana</b>, circa ${Math.round(c.proiezioneAnno)} l'anno.</p>
-    <p class="verdetto ${ritmoOk ? 'bene' : 'male'}">${ritmoOk
-      ? 'A questo ritmo l\'annuale conviene.'
-      : `A questo ritmo conviene il carnet: per pareggiare servono ${fNum1.format(c.pareggioSettimana - c.corseSettimana)} corse in più a settimana.`}</p>
-    ${t.registrati < 14 ? '<p class="piccola">Con meno di due settimane registrate il ritmo è ancora indicativo.</p>' : ''}
+    <h3>Tutte le opzioni a confronto</h3>
+    <p class="piccola">Quanto spenderesti <b>in un anno</b> al tuo ritmo di ${ritmo} corse a settimana, dalla più conveniente.</p>
+    <ol class="classifica">
+      ${ordinate.map((x, n) => `<li>
+        <div class="opz-testa"><span class="opz-nome">${NOMI[x.id].nome}${x.id === 'annuale' ? '<em class="tag">il tuo</em>' : ''}</span><b class="opz-anno">${euroT(x.anno)}</b></div>
+        <div class="opz-barra"><i class="s-${x.id}" style="width:${Math.max(2, x.anno / maxAnno * 100).toFixed(1)}%"></i></div>
+        <div class="opz-piede"><span>${NOMI[x.id].dett(i, c)}</span>
+          <span>${n === 0 ? '<b class="esito-ok">✓ la più conveniente</b>' : `+${euroT(x.anno - ordinate[0].anno)} l'anno`}</span></div>
+      </li>`).join('')}
+    </ol>
+    <p class="piccola">In questi ${t.giorni} giorni contati: ${ordinate.map(x => `${NOMI[x.id].corto(i)} <b>${euro(x.periodo)}</b>`).join(' · ')}.</p>
+  </div>
+
+  <div class="scheda">
+    <h3>Dove conviene cosa</h3>
+    <p class="piccola">Costo in un anno secondo quante corse fai a settimana. I pallini sono i punti di pareggio col carnet. Tocca il grafico per provare un altro ritmo.</p>
+    ${graficoSoglie(c)}
+    <p class="piccola" style="margin-top:8px">${soglie}</p>
+  </div>
+
+  <div class="scheda">
+    <h3>Al rinnovo</h3>
+    ${scenario(`Se resta a ${euroT(i.prezzoAnnuale)}`, i.prezzoAnnuale)}
+    ${l ? scenario(`Se torna a ${euroT(i.prezzoListino)}`, i.prezzoListino) : ''}
+    <p class="piccola">Il mensile da ${euro(i.mensile)} conviene solo nei mesi con almeno ${c.mensileDa} corse.${t.registrati < 14 ? ' Con meno di due settimane registrate il ritmo è ancora una stima.' : ''}</p>
     ${c.giorniAlRinnovo !== null ? `<p class="piccola">${c.giorniAlRinnovo >= 0
       ? `Mancano <b>${plur(c.giorniAlRinnovo, 'giorno', 'giorni')}</b> alla scadenza (${fBreve.format(M.daChiave(i.scadenzaAbbonamento))}).`
       : 'Abbonamento scaduto: aggiorna le date in Impostazioni.'}</p>` : ''}
@@ -633,13 +806,14 @@ function disegnaConti() {
         <td class="${m.risparmio >= 0 ? 'pos' : 'neg'}">${m.risparmio >= 0 ? '+' : '−'}${euro(Math.abs(m.risparmio))}</td></tr>`).join('')}
     </table>
     <p class="piccola" style="margin-top:10px">«Senza abb.» è quello che avresti speso col carnet (${euro(c.prezzoCorsa)} a corsa)${usaMensile ? '; * = conveniva il mensile' : ''}.
-      Il mensile da ${euro(i.mensile)} conviene solo da ${c.mensileDa} corse in su nello stesso mese. «Esito» in verde: l'annuale ti ha fatto risparmiare.</p>
+      «Quota» è la parte dell'annuale da ${euroT(i.prezzoAnnuale)} per quei giorni. «Esito» in verde: l'annuale ti ha fatto risparmiare.</p>
   </div>`;
+  attivaGrafico(c);
 }
 
 function disegnaImpostazioni() {
   const i = imp();
-  const valori = { iPrezzo: i.prezzoAnnuale, iInizio: i.inizioAbbonamento, iScadenza: i.scadenzaAbbonamento,
+  const valori = { iPrezzo: i.prezzoAnnuale, iListino: i.prezzoListino ?? M.IMPOSTAZIONI_BASE.prezzoListino, iInizio: i.inizioAbbonamento, iScadenza: i.scadenzaAbbonamento,
     iSingolo: i.singolo, iMensile: i.mensile, iCarnet: i.carnetPrezzo, iCarnetCorse: i.carnetCorse, iTraccia: i.inizioTracciamento };
   for (const [id, v] of Object.entries(valori)) {
     const inp = $('#' + id);
@@ -844,7 +1018,9 @@ addEventListener('online', () => sincronizza());
   const g = modifica(azione, M.oggi());
   setTimeout(() => { timbra(); avvisa('✓ Oggi: ' + M.descrivi(g), 3500); }, 50);
 })();
-vai('giorno');
+// #calendario, #conti, #impostazioni aprono direttamente quella pagina (comodo anche da Comandi Rapidi)
+const pagina = location.hash.slice(1);
+vai(['calendario', 'conti', 'impostazioni'].includes(pagina) ? pagina : 'giorno');
 sincronizza();
 
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js');

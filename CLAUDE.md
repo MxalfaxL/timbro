@@ -19,13 +19,21 @@ Tutto in italiano: interfaccia, codice, commenti, messaggi di commit.
   Unione tra dispositivi: vince la giornata (e le impostazioni) con `t` più recente.
 - `sincro.js`: API Contents di GitHub (GET + PUT con sha; su 409 si rilegge e si riprova).
 - `index.html`: interfaccia e orchestrazione (salvataggio locale immediato, sincronizzazione dopo 600 ms).
-- `sw.js`: cache-first del guscio. **A ogni modifica dell'app alza `VERSIONE` in `sw.js` e
-  `VERSIONE_APP` in `index.html`**, altrimenti i telefoni restano sulla versione vecchia.
+- `sw.js`: cache-first del guscio (scaricato con `cache: 'reload'`). **A ogni modifica dell'app
+  lancia `python3 strumenti/versione.py AAAA.MM.GG[-n]`**: alza insieme `VERSIONE` in `sw.js`,
+  `VERSIONE_APP` e i `?v=` degli import in `index.html` e `sincro.js`. Senza, i telefoni restano sulla
+  versione vecchia o mescolano una pagina nuova con un modulo vecchio (successo l'8/11: Conti vuota).
+- Icone: `strumenti/disegna_icone.py`; se cambiano, alza anche il `?v=` delle icone in
+  `index.html` e `manifest.webmanifest`.
 - Test: `node --test test/*.test.mjs`.
 
 ## Da sapere
 
-- Il prezzo dell'annuale è provvisorio (210 €) finché Marco non lo comunica: si cambia dall'app
-  (Impostazioni) e finisce in `dati.json`, non nel codice.
-- Il tracciamento parte dal 1 novembre 2026; Marco recupera i giorni dal 1 al 7 novembre a mano.
+- Prezzi in `dati.json` (Impostazioni dell'app), non nel codice: annuale pagato 210 € in promozione,
+  prezzo pieno 370 € (`prezzoListino`), carnet 14 €/10, singolo 1,50 €, mensile 37 €.
+- Conti: `conti().opzioni` confronta annuale, prezzo pieno, mensile, carnet e singolo (costo l'anno al
+  ritmo attuale, costo nel periodo, soglia in corse a settimana). Colori del grafico validati col
+  validatore dataviz (chiaro e scuro): carnet blu, annuale arancio (pieno = tratteggiato), mensile verde acqua.
+- `#calendario`, `#conti`, `#impostazioni` nell'indirizzo aprono quella pagina.
+- Il tracciamento parte dal 1 novembre 2026.
 - Comandi Rapidi: `?registra=pullman|pullman1|macchina|altro|nonlavoro|corsa` registra oggi.

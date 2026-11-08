@@ -21,7 +21,10 @@ App: **https://mxalfaxl.github.io/timbro/**
 - Una corsa = un biglietto che avrei timbrato. Col carnet (14 € per 10) costa 1,40 €.
 - Quota dell'annuale = prezzo × giorni contati ÷ durata dell'abbonamento (365 giorni se non ci sono le date).
 - Senza abbonamento, ogni mese compro la cosa che costa meno tra carnet e mensile (37 €).
-- Pareggio: prezzo dell'annuale ÷ 1,40 € (con 210 € sono 150 corse l'anno, circa 2,9 a settimana).
+- Pareggio: prezzo dell'annuale ÷ 1,40 € (con 210 € sono 150 corse l'anno, circa 2,9 a settimana;
+  al prezzo pieno di 370 € ne servono 265, circa 5,1 a settimana).
+- Nei Conti: classifica di tutte le opzioni (annuale 210 €, annuale 370 €, mensile, carnet, singolo)
+  al ritmo attuale, grafico «dove conviene cosa» da toccare per provare altri ritmi, scenari di rinnovo.
 
 ## Dove stanno i dati
 
@@ -54,4 +57,4 @@ il token una volta. I dati si ritrovano poi ovunque grazie a GitHub.
 - Test: `node --test test/*.test.mjs`
 - Prova locale: `python3 -m http.server 8740` e apri http://localhost:8740
   (in locale il service worker non si registra).
-- A ogni rilascio alza `VERSIONE` in `sw.js` e `VERSIONE_APP` in `index.html`.
+- A ogni rilascio: `python3 strumenti/versione.py AAAA.MM.GG` (versione di cache e import).

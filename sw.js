@@ -4,13 +4,17 @@
 
    Quando cambia qualcosa nell'app, alza VERSIONE: il vecchio guscio viene
    buttato e il nuovo scaricato alla prima apertura con rete. */
-const VERSIONE = '2026.11.08-2';
+const VERSIONE = '2026.11.08-3';
 const CACHE = 'timbro-' + VERSIONE;
 const GUSCIO = ['./', './index.html', './motore.js', './sincro.js', './manifest.webmanifest',
                 './icona-180.png', './icona-192.png', './icona-512.png'];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(GUSCIO)).then(() => self.skipWaiting()));
+  // cache: 'reload' scavalca la cache HTTP del browser: GitHub Pages la tiene 10 minuti,
+  // e senza questo il guscio nuovo potrebbe contenere file vecchi.
+  e.waitUntil(caches.open(CACHE)
+    .then(c => c.addAll(GUSCIO.map(u => new Request(u, { cache: 'reload' }))))
+    .then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', e => {

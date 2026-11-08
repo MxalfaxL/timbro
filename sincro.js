@@ -2,7 +2,7 @@
    (API Contents). Il token resta sul dispositivo: passa solo nell'intestazione
    delle chiamate verso api.github.com. */
 
-import { serializza, unisci, normalizza, canonico } from './motore.js';
+import { serializza, unisci, normalizza, canonico } from './motore.js?v=2026.11.08-3';
 
 export class ErroreGit extends Error {
   constructor(stato, messaggio) { super(messaggio); this.name = 'ErroreGit'; this.stato = stato; }

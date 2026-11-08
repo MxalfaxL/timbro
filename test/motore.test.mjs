@@ -115,6 +115,36 @@ test('conti: pareggio, quota, carnet contro mensile', () => {
   assert.equal(c2.mesi[0].migliore, 37);
 });
 
+test('conti: tutte le opzioni a confronto, soglie e classifica', () => {
+  const s = M.statoVuoto();
+  s.impostazioni = { ...s.impostazioni, prezzoAnnuale: 210, prezzoListino: 370 };
+  const p = { lavoro: true, mezzo: 'pullman', corseLavoro: 2, extra: 0, t: 1 };
+  for (const k of ['2026-11-02', '2026-11-04']) s.giorni[k] = p;               // 4 corse
+  for (const k of ['2026-11-01', '2026-11-03', '2026-11-05', '2026-11-06', '2026-11-07', '2026-11-08'])
+    s.giorni[k] = { lavoro: false, mezzo: null, corseLavoro: 2, extra: 0, t: 1 };
+  const c = M.conti(s, '2026-11-08');
+  const o = Object.fromEntries(c.opzioni.map(x => [x.id, x]));
+  assert.deepEqual(c.opzioni.map(x => x.id), ['annuale', 'listino', 'mensile', 'carnet', 'singolo']);
+  assert.ok(Math.abs(c.corseSettimana - 3.5) < 1e-9);
+  assert.equal(o.annuale.anno, 210);
+  assert.equal(o.listino.anno, 370);
+  assert.ok(Math.abs(o.mensile.anno - 444) < 1e-9);
+  assert.ok(Math.abs(o.carnet.anno - 3.5 * 365 / 7 * 1.4) < 1e-9);       // ~255,50 €
+  assert.ok(Math.abs(o.singolo.anno - 3.5 * 365 / 7 * 1.5) < 1e-9);
+  assert.ok(Math.abs(o.carnet.periodo - 5.6) < 1e-9);
+  assert.ok(Math.abs(o.annuale.periodo - 210 * 8 / 365) < 1e-9);
+  assert.ok(Math.abs(o.annuale.soglia - 2.877) < 1e-3);                   // corse a settimana
+  assert.ok(Math.abs(o.listino.soglia - 5.068) < 1e-3);
+  assert.ok(Math.abs(o.mensile.soglia - 6.082) < 1e-3);
+  assert.equal(o.carnet.soglia, null);
+  const piuEconomica = [...c.opzioni].sort((x, y) => x.anno - y.anno)[0];
+  assert.equal(piuEconomica.id, 'annuale');
+  assert.ok(Math.abs(M.costoAnno(o.carnet, 2) - 146) < 1e-9);
+  // senza promozione la riga del prezzo pieno sparisce
+  s.impostazioni.prezzoListino = 210;
+  assert.ok(!M.conti(s, '2026-11-08').opzioni.some(x => x.id === 'listino'));
+});
+
 test('conti: durata vera dalle date dell\'abbonamento', () => {
   const s = M.statoVuoto();
   s.impostazioni = { ...s.impostazioni, prezzoAnnuale: 200, inizioAbbonamento: '2026-03-01', scadenzaAbbonamento: '2027-02-28' };
