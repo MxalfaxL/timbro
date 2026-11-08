@@ -4,7 +4,7 @@
 
    Quando cambia qualcosa nell'app, alza VERSIONE: il vecchio guscio viene
    buttato e il nuovo scaricato alla prima apertura con rete. */
-const VERSIONE = '2026.11.08-3';
+const VERSIONE = '2026.11.08-4';
 const CACHE = 'timbro-' + VERSIONE;
 const GUSCIO = ['./', './index.html', './motore.js', './sincro.js', './manifest.webmanifest',
                 './icona-180.png', './icona-192.png', './icona-512.png'];

@@ -35,5 +35,8 @@ Tutto in italiano: interfaccia, codice, commenti, messaggi di commit.
   ritmo attuale, costo nel periodo, soglia in corse a settimana). Colori del grafico validati col
   validatore dataviz (chiaro e scuro): carnet blu, annuale arancio (pieno = tratteggiato), mensile verde acqua.
 - `#calendario`, `#conti`, `#impostazioni` nell'indirizzo aprono quella pagina.
+- Navigazione fino a un anno nel futuro (`limiteFuturo()`); `conti()` e i riepiloghi contano solo fino a oggi.
+- «Tira giù per aggiornare» fatto a mano (la web app su iPhone non ce l'ha): `sincronizza()` +
+  `reg.update()`; se c'è una versione nuova ricarica la pagina.
 - Il tracciamento parte dal 1 novembre 2026.
 - Comandi Rapidi: `?registra=pullman|pullman1|macchina|altro|nonlavoro|corsa` registra oggi.

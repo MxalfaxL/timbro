@@ -11,6 +11,10 @@ App: **https://mxalfaxl.github.io/timbro/**
   🚗 Macchina o 🤝 Altro e la giornata è registrata. Se non lavoro, «Non lavoro».
 - Le corse in pullman fuori dal lavoro si aggiungono col **+** («Altre corse in pullman»).
 - Frecce, settimana in alto o **Calendario** per tornare ai giorni passati; i giorni dimenticati sono in rosso.
+- Si può andare anche **nel futuro** (fino a un anno) e segnare in anticipo: quei giorni entrano nei conti
+  solo quando arrivano.
+- **Tira giù** dall'alto della pagina per aggiornare a mano i dati e, se c'è, la versione nuova dell'app.
+  I dati si aggiornano comunque da soli all'apertura, al ritorno dallo sfondo e dopo ogni tocco.
 - **Conti**: quanto ho risparmiato (o perso) con l'annuale rispetto al carnet, il ritmo di corse a settimana
   rispetto al pareggio, come vado al lavoro e il dettaglio mese per mese.
 - **Impostazioni**: prezzo dell'abbonamento e date, prezzi di biglietto, carnet e mensile,

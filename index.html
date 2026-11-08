@@ -16,8 +16,8 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icona-180.png?v=2">
 <link rel="icon" type="image/png" href="icona-192.png?v=2">
-<link rel="modulepreload" href="motore.js?v=2026.11.08-3">
-<link rel="modulepreload" href="sincro.js?v=2026.11.08-3">
+<link rel="modulepreload" href="motore.js?v=2026.11.08-4">
+<link rel="modulepreload" href="sincro.js?v=2026.11.08-4">
 <style>
 :root{
   --fondo:#F5F2EC; --carta:#FFFFFF; --inch:#1C1E23; --grigio:#6C7078; --linea:#E6E0D6; --tenue:#EDE8DF;
@@ -94,6 +94,8 @@ button:disabled{cursor:default}
 .libero .segno{width:8px;background:var(--grigio);opacity:.45}
 .libero.corse .segno{background:linear-gradient(90deg,var(--grigio) 50%,var(--bus) 50%);opacity:1}
 .gg.manca .segno{width:6px;height:6px;border-radius:50%;background:var(--rosso)}
+.gg.futuro .gs,.gg.futuro .gn{opacity:.5}
+.gg.futuro.sel .gn{opacity:1}
 
 /* schede */
 .scheda{background:var(--carta);border:1px solid var(--linea);border-radius:var(--r);padding:14px;margin-bottom:12px;box-shadow:var(--ombra)}
@@ -153,6 +155,8 @@ button:disabled{cursor:default}
 .cal-g.altro{background:var(--altro-tinta);border-color:transparent}
 .cal-g.libero{background:repeating-linear-gradient(135deg,var(--tenue) 0 5px,transparent 5px 10px);border-color:var(--linea);color:var(--grigio)}
 .cal-g.manca{border:1.5px dashed var(--rosso)}
+.cal-g.futuro{color:var(--grigio)}
+.cal-g.futuro:not(.pullman):not(.macchina):not(.altro):not(.libero){background:none;border-style:dashed}
 .cal-g.oggi{box-shadow:inset 0 0 0 2px var(--inch)}
 .cal-g .cc{position:absolute;right:5px;bottom:4px;min-width:18px;height:18px;padding:0 4px;border-radius:9px;background:var(--bus);
   color:#fff;font-size:11px;font-weight:800;display:grid;place-items:center}
@@ -285,6 +289,16 @@ button:disabled{cursor:default}
   max-width:calc(100% - 32px);width:max-content;background:var(--inch);color:var(--fondo);padding:11px 16px;border-radius:13px;
   font-size:14px;font-weight:600;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s}
 .avviso.su{opacity:1;transform:translate(-50%,0)}
+.tira{position:fixed;left:50%;top:env(safe-area-inset-top);z-index:8;transform:translate(-50%,-50px);opacity:0;
+  display:flex;align-items:center;gap:8px;height:38px;padding:0 16px;border-radius:99px;background:var(--carta);
+  border:1px solid var(--linea);box-shadow:0 6px 18px rgba(0,0,0,.14);font-size:13px;font-weight:700;color:var(--grigio);
+  transition:transform .25s ease-out,opacity .2s;pointer-events:none;white-space:nowrap}
+.tira i{font-style:normal;font-size:16px;color:var(--bus);transition:transform .2s}
+.tira.pronto{color:var(--inch)}
+.tira.pronto i{transform:rotate(180deg)}
+.tira.gira{transform:translate(-50%,16px)!important;opacity:1!important}
+.tira.gira i{animation:gira .8s linear infinite}
+@keyframes gira{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -458,12 +472,13 @@ button:disabled{cursor:default}
   <button data-vai="impostazioni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h9M17 7h3M4 12h3M11 12h9M4 17h11M19 17h1"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="17" r="2"/></svg>Impostazioni</button>
 </div></nav>
 <div class="avviso" id="avviso" role="status" aria-live="polite"></div>
+<div class="tira" id="tira" aria-hidden="true"><i>↓</i><span>Tira per aggiornare</span></div>
 
 <script type="module">
-import * as M from './motore.js?v=2026.11.08-3';
-import { creaSincro, allinea, ErroreGit } from './sincro.js?v=2026.11.08-3';
+import * as M from './motore.js?v=2026.11.08-4';
+import { creaSincro, allinea, ErroreGit } from './sincro.js?v=2026.11.08-4';
 
-const VERSIONE_APP = '2026.11.08-3';
+const VERSIONE_APP = '2026.11.08-4';
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 
@@ -528,8 +543,11 @@ function modifica(azione, k = sel) {
   return dopo;
 }
 
+// si può andare avanti fino a un anno da oggi, per segnare in anticipo
+const limiteFuturo = () => M.spostaGiorni(M.oggi(), 366);
+
 function selezionaGiorno(k) {
-  const min = imp().inizioTracciamento, max = M.oggi();
+  const min = imp().inizioTracciamento, max = limiteFuturo();
   sel = k < min ? min : k > max ? max : k;
   seguiOggi = sel === M.oggi();
   meseCal = M.meseDi(sel);
@@ -538,21 +556,23 @@ function selezionaGiorno(k) {
 
 /* ---------- disegno ---------- */
 function classeGiorno(g, k, oggiK) {
-  if (k > oggiK || k < imp().inizioTracciamento) return 'fuori';
-  if (M.esiste(g) && g.lavoro === false) return M.corseExtra(g) ? 'libero corse' : 'libero';
-  if (M.completo(g)) return g.mezzo;
-  return k < oggiK ? 'manca' : '';
+  if (k < imp().inizioTracciamento || k > limiteFuturo()) return 'fuori';
+  const futuro = k > oggiK ? ' futuro' : '';
+  if (M.esiste(g) && g.lavoro === false) return (M.corseExtra(g) ? 'libero corse' : 'libero') + futuro;
+  if (M.completo(g)) return g.mezzo + futuro;
+  return k < oggiK ? 'manca' : futuro.trim();
 }
 
 function disegnaGiorno() {
   const g = stato.giorni[sel], oggiK = M.oggi(), d = M.daChiave(sel);
   const diff = M.giorniTra(sel, oggiK);
-  const rel = diff === 0 ? 'Oggi' : diff === 1 ? 'Ieri' : diff === 2 ? "L'altro ieri" : '';
+  const rel = { 0: 'Oggi', 1: 'Ieri', 2: "L'altro ieri", '-1': 'Domani', '-2': 'Dopodomani' }[diff] || '';
   $('#dEtichetta').textContent = rel ? `${rel} · ${fGiornoSett.format(d)}` : fGiornoSett.format(d);
   $('#dGrande').textContent = fDataLunga.format(d) + (d.getFullYear() !== M.daChiave(oggiK).getFullYear() ? ' ' + d.getFullYear() : '');
   const st = $('#dStato');
-  if (M.completo(g)) { st.textContent = '✓ Registrato'; st.className = 'data-stato ok'; }
+  if (M.completo(g)) { st.textContent = diff < 0 ? '✓ Segnato in anticipo' : '✓ Registrato'; st.className = 'data-stato ok'; }
   else if (diff === 0) { st.textContent = 'Da registrare'; st.className = 'data-stato oggi'; }
+  else if (diff < 0) { st.textContent = 'Nel futuro'; st.className = 'data-stato oggi'; }
   else { st.textContent = 'Da registrare'; st.className = 'data-stato manca'; }
 
   const lav = M.lavora(g), mezzo = M.esiste(g) ? g.mezzo : null;
@@ -569,19 +589,19 @@ function disegnaGiorno() {
   $('#extraTitolo').textContent = lav ? 'Altre corse in pullman' : 'Corse in pullman';
   $('#extraNota').textContent = lav ? 'fuori dal lavoro' : 'uscite personali';
   $('#totaleNum').textContent = M.corseTotali(g);
-  $('#totaleQuando').textContent = diff === 0 ? 'oggi' : diff === 1 ? 'ieri' : 'quel giorno';
+  $('#totaleQuando').textContent = diff === 0 ? 'oggi' : diff === 1 ? 'ieri' : diff === -1 ? 'domani' : 'quel giorno';
   $('#btnSvuota').hidden = !M.esiste(g);
   $('#bannerGit').hidden = collegato();
   $('#btnOggi').hidden = diff === 0;
   $('[data-azione="prima"]').disabled = sel <= imp().inizioTracciamento;
-  $('[data-azione="dopo"]').disabled = sel >= oggiK;
+  $('[data-azione="dopo"]').disabled = sel >= limiteFuturo();
 
   const lun = M.lunediDi(sel);
   let html = '';
   for (let i = 0; i < 7; i++) {
     const k = M.spostaGiorni(lun, i), gk = stato.giorni[k];
     const classi = ['gg', classeGiorno(gk, k, oggiK), k === sel ? 'sel' : '', k === oggiK ? 'oggi' : ''].join(' ');
-    const fuori = k > oggiK || k < imp().inizioTracciamento;
+    const fuori = k > limiteFuturo() || k < imp().inizioTracciamento;
     html += `<button class="${classi}" data-giorno="${k}" ${fuori ? 'disabled' : ''} aria-label="${fCompleta.format(M.daChiave(k))}">`
       + `<span class="gs">${INIZIALI[i]}</span><span class="gn">${M.daChiave(k).getDate()}</span><span class="segno"></span></button>`;
   }
@@ -594,14 +614,14 @@ function disegnaCalendario() {
   const oggiK = M.oggi(), min = imp().inizioTracciamento;
   $('#meseTitolo').textContent = cap(fMese.format(M.daChiave(primo)));
   $('#mesePrima').disabled = primo <= min;
-  $('#meseDopo').disabled = ultimo >= oggiK;
+  $('#meseDopo').disabled = ultimo >= limiteFuturo();
 
   let html = INIZIALI.map(x => `<div class="cal-int">${x}</div>`).join('');
   let k = M.lunediDi(primo);
   do {
     for (let i = 0; i < 7; i++, k = M.spostaGiorni(k, 1)) {
       if (M.meseDi(k) !== meseCal) { html += '<div class="cal-g vuota"></div>'; continue; }
-      const g = stato.giorni[k], n = M.corseTotali(g), fuori = k > oggiK || k < min;
+      const g = stato.giorni[k], n = M.corseTotali(g), fuori = k > limiteFuturo() || k < min;
       html += `<button class="cal-g ${fuori ? '' : classeGiorno(g, k, oggiK)} ${k === oggiK ? 'oggi' : ''}" data-giorno="${k}" ${fuori ? 'disabled' : ''}`
         + ` aria-label="${fCompleta.format(M.daChiave(k))}">${M.daChiave(k).getDate()}${n ? `<span class="cc">${n}</span>` : ''}</button>`;
     }
@@ -610,11 +630,14 @@ function disegnaCalendario() {
 
   const da = primo < min ? min : primo, fino = ultimo > oggiK ? oggiK : ultimo;
   const r = M.riepilogo(stato, da, fino);
-  $('#meseRiepilogo').innerHTML = r.giorni === 0 ? '<p class="piccola">Nessun giorno da contare in questo mese.</p>' : `
+  const avanti = Object.keys(stato.giorni).filter(k => M.meseDi(k) === meseCal && k > oggiK && M.completo(stato.giorni[k])).length;
+  const notaAvanti = avanti ? `<p class="piccola">${avanti === 1 ? '1 giorno futuro già segnato: entra nei conti quando arriva.' : `${avanti} giorni futuri già segnati: entrano nei conti quando arrivano.`}</p>` : '';
+  $('#meseRiepilogo').innerHTML = r.giorni === 0
+    ? `<h3>${cap(fMese.format(M.daChiave(primo)))}</h3>${notaAvanti || '<p class="piccola">Mese ancora da venire: puoi già segnare i giorni che conosci.</p>'}` : `
     <h3>${cap(fMese.format(M.daChiave(primo)))}</h3>
     <p><b>${plur(r.giorniLavoro, 'giorno', 'giorni')} di lavoro</b>: 🚌 ${r.pullman} · 🚗 ${r.macchina} · 🤝 ${r.altro}</p>
     <p><b>${plur(r.corse, 'corsa', 'corse')} in pullman</b> <span class="piccola">(${r.corseLavoro} per lavoro, ${r.corseExtra} extra)</span></p>
-    ${r.daRegistrare ? `<p style="color:var(--rosso);font-weight:600">${plur(r.daRegistrare, 'giorno', 'giorni')} ancora da registrare</p>` : '<p class="piccola">Tutti i giorni registrati ✓</p>'}`;
+    ${r.daRegistrare ? `<p style="color:var(--rosso);font-weight:600">${plur(r.daRegistrare, 'giorno', 'giorni')} ancora da registrare</p>` : '<p class="piccola">Tutti i giorni fino a oggi registrati ✓</p>'}${notaAvanti}`;
 }
 
 const fEuroTondo = new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
@@ -987,7 +1010,8 @@ $('#btnScollega').addEventListener('click', () => {
 
 $('#btnCsv').addEventListener('click', () => {
   const righe = [['Data', 'Giorno', 'Lavoro', 'Mezzo', 'Corse per lavoro', 'Corse extra', 'Corse totali']];
-  for (const k of M.giorniDa(imp().inizioTracciamento, M.oggi())) {
+  const ultimoSegnato = Object.keys(stato.giorni).sort().pop() || M.oggi();
+  for (const k of M.giorniDa(imp().inizioTracciamento, ultimoSegnato > M.oggi() ? ultimoSegnato : M.oggi())) {
     const g = stato.giorni[k], d = M.daChiave(k), c = M.esiste(g);
     righe.push([d.toLocaleDateString('it-IT'), fGiornoSett.format(d),
       c ? (g.lavoro === false ? 'no' : 'sì') : '', c && g.lavoro !== false ? (g.mezzo || '') : '',
@@ -1001,10 +1025,65 @@ $('#btnCsv').addEventListener('click', () => {
   setTimeout(() => URL.revokeObjectURL(a.href), 5000);
 });
 
+/* ---------- aggiornamenti: dati e versione dell'app ----------
+   I dati si allineano all'apertura, al ritorno dallo sfondo e dopo ogni modifica.
+   La web app sulla Home non ha il "tira giù" del browser: qui c'è il nostro, che
+   allinea i dati e, se c'è, carica subito la versione nuova dell'app. */
+let versioneNuova = false;
+const registrazioneSw = () => navigator.serviceWorker?.getRegistration?.() ?? Promise.resolve(null);
+async function cercaVersione() {
+  try { const reg = await registrazioneSw(); if (reg) await reg.update(); } catch { /* offline */ }
+}
+navigator.serviceWorker?.addEventListener('controllerchange', () => {
+  if (versioneNuova) return;
+  versioneNuova = true;
+  avvisa('Nuova versione pronta: tira giù per aggiornare', 4000);
+});
+
+async function aggiornaTutto() {
+  const tira = $('#tira');
+  tira.classList.add('gira'); tira.querySelector('span').textContent = 'Aggiorno…';
+  const attesa = new Promise(r => setTimeout(r, 600));          // il tempo di vedere che sta lavorando
+  await Promise.all([sincronizza(), cercaVersione(), attesa]);
+  const reg = await registrazioneSw().catch(() => null);
+  if (versioneNuova || reg?.installing || reg?.waiting) {
+    tira.querySelector('span').textContent = 'Carico la versione nuova…';
+    setTimeout(() => location.reload(), 900);
+    return;
+  }
+  tira.classList.remove('gira', 'pronto'); tira.style.transform = tira.style.opacity = '';
+  const [, testo] = SYNC[collegato() ? statoSync : 'locale'];
+  avvisa(statoSync === 'ok' && collegato() ? '✓ Dati aggiornati' : testo);
+}
+
+let tiro = null;
+addEventListener('touchstart', e => {
+  if (scrollY > 0 || e.touches.length !== 1 || $('#tira').classList.contains('gira')) return;
+  tiro = { y: e.touches[0].clientY, x: e.touches[0].clientX, d: 0 };
+}, { passive: true });
+addEventListener('touchmove', e => {
+  if (!tiro) return;
+  const t = e.touches[0];
+  tiro.d = t.clientY - tiro.y;
+  if (tiro.d <= 0 || Math.abs(t.clientX - tiro.x) > tiro.d || scrollY > 0) { $('#tira').style.transform = $('#tira').style.opacity = ''; return; }
+  const corsa = Math.min(tiro.d * 0.55, 90), el = $('#tira');
+  el.style.transform = `translate(-50%, ${corsa - 50}px)`;
+  el.style.opacity = Math.min(1, corsa / 50);
+  el.classList.toggle('pronto', tiro.d > 110);
+  el.querySelector('span').textContent = tiro.d > 110 ? 'Rilascia per aggiornare' : 'Tira per aggiornare';
+}, { passive: true });
+addEventListener('touchend', () => {
+  if (!tiro) return;
+  const via = tiro.d > 110 && scrollY <= 0;
+  tiro = null;
+  if (via) aggiornaTutto();
+  else { $('#tira').style.transform = $('#tira').style.opacity = ''; $('#tira').classList.remove('pronto'); }
+}, { passive: true });
+
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState !== 'visible') return;
   if (seguiOggi && sel !== M.oggi()) { sel = M.oggi(); meseCal = M.meseDi(sel); }
-  ridisegna(); sincronizza();
+  ridisegna(); sincronizza(); cercaVersione();
 });
 addEventListener('online', () => sincronizza());
 
