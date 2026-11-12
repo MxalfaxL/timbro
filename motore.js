@@ -38,6 +38,8 @@ export function* giorniDa(da, a) { for (let k = da; k <= a; k = spostaGiorni(k, 
 /* ---------- la giornata ----------
    { lavoro: true|false, mezzo: 'pullman'|'macchina'|'altro'|null,
      corseLavoro: 1|2, extra: n, t: ms }
+   corseLavoro = tratte del tragitto di lavoro (2 andata e ritorno, 1 un viaggio solo):
+   vale per il pullman (sono corse da pagare) e per la macchina (statistica).
    Svuotata: { vuoto: true, t } — resta come lapide, così l'altro dispositivo
    capisce che è stata cancellata e non la fa ricomparire. */
 
@@ -47,6 +49,9 @@ export const completo = g => esiste(g) && (g.lavoro === false || MEZZI.includes(
 export const corseLavoro = g => (esiste(g) && g.lavoro !== false && g.mezzo === 'pullman') ? (g.corseLavoro === 1 ? 1 : 2) : 0;
 export const corseExtra = g => esiste(g) ? Math.max(0, g.extra | 0) : 0;
 export const corseTotali = g => corseLavoro(g) + corseExtra(g);
+export const MEZZI_CON_TRATTE = ['pullman', 'macchina'];
+export const tratte = g => (esiste(g) && g.lavoro !== false && MEZZI_CON_TRATTE.includes(g.mezzo)) ? (g.corseLavoro === 1 ? 1 : 2) : 0;
+export const viaggiMacchina = g => g?.mezzo === 'macchina' ? tratte(g) : 0;
 
 export function applica(g, azione, ora = Date.now()) {
   if (azione.tipo === 'svuota') return { vuoto: true, t: ora };
@@ -65,7 +70,7 @@ export function applica(g, azione, ora = Date.now()) {
       break;
     case 'corseLavoro':
       n.lavoro = true;
-      n.mezzo = 'pullman';
+      if (!MEZZI_CON_TRATTE.includes(n.mezzo)) n.mezzo = 'pullman';
       n.corseLavoro = azione.valore === 1 ? 1 : 2;
       break;
     case 'extra':
@@ -82,7 +87,8 @@ export function applica(g, azione, ora = Date.now()) {
 export const AZIONI_URL = Object.freeze({
   pullman:   { tipo: 'mezzo', valore: 'pullman', corse: 2 },
   pullman1:  { tipo: 'mezzo', valore: 'pullman', corse: 1 },
-  macchina:  { tipo: 'mezzo', valore: 'macchina' },
+  macchina:  { tipo: 'mezzo', valore: 'macchina', corse: 2 },
+  macchina1: { tipo: 'mezzo', valore: 'macchina', corse: 1 },
   altro:     { tipo: 'mezzo', valore: 'altro' },
   nonlavoro: { tipo: 'lavoro', valore: false },
   corsa:     { tipo: 'extra', delta: 1 },
@@ -93,7 +99,7 @@ export function descrivi(g) {
   const parti = [];
   if (g.lavoro === false) parti.push('non lavoro');
   else if (g.mezzo === 'pullman') parti.push(`lavoro in pullman, ${corseLavoro(g) === 2 ? 'andata e ritorno' : 'una corsa'}`);
-  else if (g.mezzo === 'macchina') parti.push('lavoro in macchina');
+  else if (g.mezzo === 'macchina') parti.push(`lavoro in macchina, ${tratte(g) === 2 ? 'andata e ritorno' : 'un viaggio solo'}`);
   else if (g.mezzo === 'altro') parti.push('lavoro con altro mezzo');
   else parti.push('lavoro, mezzo da indicare');
   const e = corseExtra(g);
@@ -143,6 +149,7 @@ const contatore = () => ({
   giorni: 0, registrati: 0, daRegistrare: 0,
   corse: 0, corseLavoro: 0, corseExtra: 0,
   giorniLavoro: 0, pullman: 0, macchina: 0, altro: 0, nonLavoro: 0,
+  viaggiMacchina: 0, giorniTrattaSola: 0,
 });
 
 function somma(c, g) {
@@ -150,6 +157,8 @@ function somma(c, g) {
   if (completo(g)) c.registrati++; else c.daRegistrare++;
   const cl = corseLavoro(g), ce = corseExtra(g);
   c.corse += cl + ce; c.corseLavoro += cl; c.corseExtra += ce;
+  c.viaggiMacchina += viaggiMacchina(g);
+  if (tratte(g) === 1) c.giorniTrattaSola++;
   if (esiste(g)) {
     if (g.lavoro === false) c.nonLavoro++;
     else if (MEZZI.includes(g.mezzo)) { c.giorniLavoro++; c[g.mezzo]++; }

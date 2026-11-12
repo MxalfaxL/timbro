@@ -47,6 +47,31 @@ test('giornata: macchina, non lavoro, svuota, extra mai sotto zero', () => {
   assert.ok(M.lavora(g));
 });
 
+test('macchina: andata e ritorno o un viaggio solo, senza toccare le corse in pullman', () => {
+  let g = M.applica(undefined, { tipo: 'mezzo', valore: 'macchina', alterna: true }, 1);
+  assert.equal(M.tratte(g), 2);
+  assert.equal(M.viaggiMacchina(g), 2);
+  assert.equal(M.corseTotali(g), 0);
+  g = M.applica(g, { tipo: 'corseLavoro', valore: 1 }, 2);
+  assert.equal(g.mezzo, 'macchina');                       // resta macchina, non diventa pullman
+  assert.equal(M.viaggiMacchina(g), 1);
+  assert.equal(M.descrivi(g), 'lavoro in macchina, un viaggio solo');
+  assert.equal(M.descrivi(M.applica(undefined, M.AZIONI_URL.macchina1, 3)), 'lavoro in macchina, un viaggio solo');
+  assert.equal(M.descrivi(M.applica(g, M.AZIONI_URL.macchina, 4)), 'lavoro in macchina, andata e ritorno');
+  g = M.applica(g, { tipo: 'lavoro', valore: false }, 5);
+  assert.equal(M.tratte(g), 0);                            // non lavoro: niente tratte
+  // riepilogo: andata in macchina ieri, ritorno oggi
+  const s = M.statoVuoto();
+  s.giorni['2026-11-11'] = { lavoro: true, mezzo: 'macchina', corseLavoro: 1, extra: 0, t: 1 };
+  s.giorni['2026-11-12'] = { lavoro: true, mezzo: 'macchina', corseLavoro: 1, extra: 0, t: 1 };
+  s.giorni['2026-11-10'] = { lavoro: true, mezzo: 'pullman', corseLavoro: 1, extra: 0, t: 1 };
+  const r = M.riepilogo(s, '2026-11-10', '2026-11-12');
+  assert.equal(r.macchina, 2);
+  assert.equal(r.viaggiMacchina, 2);
+  assert.equal(r.corse, 1);
+  assert.equal(r.giorniTrattaSola, 3);
+});
+
 test('comandi da URL', () => {
   const g = M.applica(undefined, M.AZIONI_URL.pullman1, 1);
   assert.equal(M.corseTotali(g), 1);

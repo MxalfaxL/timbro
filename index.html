@@ -16,8 +16,8 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icona-180.png?v=2">
 <link rel="icon" type="image/png" href="icona-192.png?v=2">
-<link rel="modulepreload" href="motore.js?v=2026.11.08-4">
-<link rel="modulepreload" href="sincro.js?v=2026.11.08-4">
+<link rel="modulepreload" href="motore.js?v=2026.11.12">
+<link rel="modulepreload" href="sincro.js?v=2026.11.12">
 <style>
 :root{
   --fondo:#F5F2EC; --carta:#FFFFFF; --inch:#1C1E23; --grigio:#6C7078; --linea:#E6E0D6; --tenue:#EDE8DF;
@@ -94,6 +94,7 @@ button:disabled{cursor:default}
 .libero .segno{width:8px;background:var(--grigio);opacity:.45}
 .libero.corse .segno{background:linear-gradient(90deg,var(--grigio) 50%,var(--bus) 50%);opacity:1}
 .gg.manca .segno{width:6px;height:6px;border-radius:50%;background:var(--rosso)}
+.gg.uno .segno{width:8px}
 .gg.futuro .gs,.gg.futuro .gn{opacity:.5}
 .gg.futuro.sel .gn{opacity:1}
 
@@ -116,6 +117,9 @@ button:disabled{cursor:default}
 .segmenti.ar{margin-top:10px;background:var(--bus-tinta)}
 .segmenti.ar button{color:var(--bus)}
 .segmenti.ar button[aria-pressed=true]{background:var(--bus);color:#fff}
+.segmenti.ar.auto{background:var(--auto-tinta)}
+.segmenti.ar.auto button{color:var(--auto)}
+.segmenti.ar.auto button[aria-pressed=true]{background:var(--auto);color:#fff}
 
 .contatore{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .contatore b{display:block;font-size:15px}
@@ -160,6 +164,9 @@ button:disabled{cursor:default}
 .cal-g.oggi{box-shadow:inset 0 0 0 2px var(--inch)}
 .cal-g .cc{position:absolute;right:5px;bottom:4px;min-width:18px;height:18px;padding:0 4px;border-radius:9px;background:var(--bus);
   color:#fff;font-size:11px;font-weight:800;display:grid;place-items:center}
+.cal-g .cm{position:absolute;left:5px;bottom:4px;min-width:18px;height:18px;padding:0 4px;border-radius:9px;background:var(--auto);
+  color:#fff;font-size:11px;font-weight:800;display:grid;place-items:center}
+.riga small{color:var(--grigio);font-size:12px;font-weight:600;margin-left:6px}
 .legenda{display:flex;flex-wrap:wrap;gap:6px 14px;margin:14px 2px;font-size:12px;color:var(--grigio);font-weight:600}
 .legenda span{display:flex;align-items:center;gap:6px}
 .legenda i{width:12px;height:12px;border-radius:4px;display:inline-block}
@@ -354,7 +361,7 @@ button:disabled{cursor:default}
           </div>
           <div class="segmenti ar" id="segAR">
             <button data-azione="ar" data-valore="2">Andata e ritorno</button>
-            <button data-azione="ar" data-valore="1">Una corsa sola</button>
+            <button data-azione="ar" data-valore="1" id="arUno">Una corsa sola</button>
           </div>
         </div>
       </div>
@@ -394,6 +401,7 @@ button:disabled{cursor:default}
         <span><i style="background:repeating-linear-gradient(135deg,var(--grigio) 0 2px,transparent 2px 4px);opacity:.6"></i>Non lavoro</span>
         <span><i style="border:1.5px dashed var(--rosso)"></i>Da registrare</span>
         <span><i style="background:var(--bus);border-radius:6px"></i>Corse in pullman</span>
+        <span><i style="background:var(--auto);border-radius:6px"></i>Viaggi in macchina</span>
       </div>
       <div class="scheda" id="meseRiepilogo"></div>
     </section>
@@ -475,10 +483,10 @@ button:disabled{cursor:default}
 <div class="tira" id="tira" aria-hidden="true"><i>↓</i><span>Tira per aggiornare</span></div>
 
 <script type="module">
-import * as M from './motore.js?v=2026.11.08-4';
-import { creaSincro, allinea, ErroreGit } from './sincro.js?v=2026.11.08-4';
+import * as M from './motore.js?v=2026.11.12';
+import { creaSincro, allinea, ErroreGit } from './sincro.js?v=2026.11.12';
 
-const VERSIONE_APP = '2026.11.08-4';
+const VERSIONE_APP = '2026.11.12';
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 
@@ -559,7 +567,7 @@ function classeGiorno(g, k, oggiK) {
   if (k < imp().inizioTracciamento || k > limiteFuturo()) return 'fuori';
   const futuro = k > oggiK ? ' futuro' : '';
   if (M.esiste(g) && g.lavoro === false) return (M.corseExtra(g) ? 'libero corse' : 'libero') + futuro;
-  if (M.completo(g)) return g.mezzo + futuro;
+  if (M.completo(g)) return g.mezzo + (M.tratte(g) === 1 ? ' uno' : '') + futuro;
   return k < oggiK ? 'manca' : futuro.trim();
 }
 
@@ -579,7 +587,9 @@ function disegnaGiorno() {
   $$('#segLavoro button').forEach(b => b.setAttribute('aria-pressed', String((b.dataset.valore === '1') === lav)));
   $('#bloccoMezzo').hidden = !lav;
   $$('.mezzo').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.valore === mezzo)));
-  $('#segAR').hidden = !(lav && mezzo === 'pullman');
+  $('#segAR').hidden = !(lav && M.MEZZI_CON_TRATTE.includes(mezzo));
+  $('#segAR').classList.toggle('auto', mezzo === 'macchina');
+  $('#arUno').textContent = mezzo === 'macchina' ? 'Un viaggio solo' : 'Una corsa sola';
   const cl = M.esiste(g) && g.corseLavoro === 1 ? 1 : 2;
   $$('#segAR button').forEach(b => b.setAttribute('aria-pressed', String(Number(b.dataset.valore) === cl)));
 
@@ -623,7 +633,7 @@ function disegnaCalendario() {
       if (M.meseDi(k) !== meseCal) { html += '<div class="cal-g vuota"></div>'; continue; }
       const g = stato.giorni[k], n = M.corseTotali(g), fuori = k > limiteFuturo() || k < min;
       html += `<button class="cal-g ${fuori ? '' : classeGiorno(g, k, oggiK)} ${k === oggiK ? 'oggi' : ''}" data-giorno="${k}" ${fuori ? 'disabled' : ''}`
-        + ` aria-label="${fCompleta.format(M.daChiave(k))}">${M.daChiave(k).getDate()}${n ? `<span class="cc">${n}</span>` : ''}</button>`;
+        + ` aria-label="${fCompleta.format(M.daChiave(k))}">${M.daChiave(k).getDate()}${n ? `<span class="cc">${n}</span>` : ''}${M.viaggiMacchina(g) ? `<span class="cm">${M.viaggiMacchina(g)}</span>` : ''}</button>`;
     }
   } while (k <= ultimo);
   $('#cal').innerHTML = html;
@@ -637,6 +647,7 @@ function disegnaCalendario() {
     <h3>${cap(fMese.format(M.daChiave(primo)))}</h3>
     <p><b>${plur(r.giorniLavoro, 'giorno', 'giorni')} di lavoro</b>: 🚌 ${r.pullman} · 🚗 ${r.macchina} · 🤝 ${r.altro}</p>
     <p><b>${plur(r.corse, 'corsa', 'corse')} in pullman</b> <span class="piccola">(${r.corseLavoro} per lavoro, ${r.corseExtra} extra)</span></p>
+    ${r.viaggiMacchina ? `<p><b>${plur(r.viaggiMacchina, 'viaggio', 'viaggi')} in macchina</b></p>` : ''}
     ${r.daRegistrare ? `<p style="color:var(--rosso);font-weight:600">${plur(r.daRegistrare, 'giorno', 'giorni')} ancora da registrare</p>` : '<p class="piccola">Tutti i giorni fino a oggi registrati ✓</p>'}${notaAvanti}`;
 }
 
@@ -813,11 +824,11 @@ function disegnaConti() {
       <div style="width:${t.altro / tot * 100}%;background:var(--altro)"></div>
     </div>
     <div class="righe">
-      <div class="riga"><span>🚌</span><span>Pullman</span><span class="q">${plur(t.pullman, 'giorno', 'giorni')}</span><span class="p">${pc(t.pullman)}%</span></div>
-      <div class="riga"><span>🚗</span><span>Macchina</span><span class="q">${plur(t.macchina, 'giorno', 'giorni')}</span><span class="p">${pc(t.macchina)}%</span></div>
+      <div class="riga"><span>🚌</span><span>Pullman<small>${plur(t.corseLavoro, 'corsa', 'corse')}</small></span><span class="q">${plur(t.pullman, 'giorno', 'giorni')}</span><span class="p">${pc(t.pullman)}%</span></div>
+      <div class="riga"><span>🚗</span><span>Macchina<small>${plur(t.viaggiMacchina, 'viaggio', 'viaggi')}</small></span><span class="q">${plur(t.macchina, 'giorno', 'giorni')}</span><span class="p">${pc(t.macchina)}%</span></div>
       <div class="riga"><span>🤝</span><span>Altro</span><span class="q">${plur(t.altro, 'giorno', 'giorni')}</span><span class="p">${pc(t.altro)}%</span></div>
     </div>` : '<p class="piccola">Ancora nessun giorno di lavoro registrato.</p>'}
-    <p class="piccola" style="margin-top:12px">${plur(t.nonLavoro, 'giorno', 'giorni')} senza lavoro. In pullman: ${plur(t.corseLavoro, 'corsa', 'corse')} per lavoro e ${t.corseExtra} extra.</p>
+    <p class="piccola" style="margin-top:12px">${plur(t.nonLavoro, 'giorno', 'giorni')} senza lavoro. In pullman: ${plur(t.corseLavoro, 'corsa', 'corse')} per lavoro e ${t.corseExtra} extra.${t.giorniTrattaSola ? ` ${t.giorniTrattaSola === 1 ? '1 giorno' : t.giorniTrattaSola + ' giorni'} con un viaggio solo (andata o ritorno).` : ''}</p>
   </div>
 
   <div class="scheda">
@@ -853,7 +864,7 @@ function disegnaImpostazioni() {
 
   const base = location.origin + location.pathname.replace(/index\.html$/, '');
   const voci = [['pullman', 'Lavoro in pullman, andata e ritorno'], ['pullman1', 'Lavoro in pullman, una corsa'],
-    ['macchina', 'Lavoro in macchina'], ['altro', 'Lavoro con altro mezzo'], ['nonlavoro', 'Oggi non lavoro'], ['corsa', 'Una corsa extra in pullman']];
+    ['macchina', 'Lavoro in macchina, andata e ritorno'], ['macchina1', 'Lavoro in macchina, un viaggio solo'], ['altro', 'Lavoro con altro mezzo'], ['nonlavoro', 'Oggi non lavoro'], ['corsa', 'Una corsa extra in pullman']];
   $('#scorciatoie').innerHTML = voci.map(([v, nome]) => `<li><div><b>${nome}</b><code>${base}?registra=${v}</code></div>`
     + `<button data-azione="copia" data-testo="${base}?registra=${v}">Copia</button></li>`).join('');
   $('#versione').textContent = `Timbro · versione ${VERSIONE_APP}`;
@@ -1009,13 +1020,13 @@ $('#btnScollega').addEventListener('click', () => {
 });
 
 $('#btnCsv').addEventListener('click', () => {
-  const righe = [['Data', 'Giorno', 'Lavoro', 'Mezzo', 'Corse per lavoro', 'Corse extra', 'Corse totali']];
+  const righe = [['Data', 'Giorno', 'Lavoro', 'Mezzo', 'Corse per lavoro', 'Corse extra', 'Corse totali', 'Viaggi in macchina']];
   const ultimoSegnato = Object.keys(stato.giorni).sort().pop() || M.oggi();
   for (const k of M.giorniDa(imp().inizioTracciamento, ultimoSegnato > M.oggi() ? ultimoSegnato : M.oggi())) {
     const g = stato.giorni[k], d = M.daChiave(k), c = M.esiste(g);
     righe.push([d.toLocaleDateString('it-IT'), fGiornoSett.format(d),
       c ? (g.lavoro === false ? 'no' : 'sì') : '', c && g.lavoro !== false ? (g.mezzo || '') : '',
-      M.corseLavoro(g), M.corseExtra(g), M.corseTotali(g)]);
+      M.corseLavoro(g), M.corseExtra(g), M.corseTotali(g), M.viaggiMacchina(g)]);
   }
   const csv = '﻿' + righe.map(r => r.join(';')).join('\r\n');
   const a = document.createElement('a');

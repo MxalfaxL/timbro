@@ -16,6 +16,8 @@ Tutto in italiano: interfaccia, codice, commenti, messaggi di commit.
 
 - `motore.js`: logica pura, senza DOM. Date come stringhe `AAAA-MM-GG` in ora locale.
   Giornata `{lavoro, mezzo, corseLavoro: 1|2, extra, t}`; svuotata = lapide `{vuoto: true, t}`.
+  `corseLavoro` = tratte del tragitto di lavoro (2 andata e ritorno, 1 un viaggio solo) per pullman e
+  macchina: per il pullman sono corse da pagare (`corseLavoro()`), per la macchina statistica (`viaggiMacchina()`).
   Unione tra dispositivi: vince la giornata (e le impostazioni) con `t` più recente.
 - `sincro.js`: API Contents di GitHub (GET + PUT con sha; su 409 si rilegge e si riprova).
 - `index.html`: interfaccia e orchestrazione (salvataggio locale immediato, sincronizzazione dopo 600 ms).
@@ -39,4 +41,4 @@ Tutto in italiano: interfaccia, codice, commenti, messaggi di commit.
 - «Tira giù per aggiornare» fatto a mano (la web app su iPhone non ce l'ha): `sincronizza()` +
   `reg.update()`; se c'è una versione nuova ricarica la pagina.
 - Il tracciamento parte dal 1 novembre 2026.
-- Comandi Rapidi: `?registra=pullman|pullman1|macchina|altro|nonlavoro|corsa` registra oggi.
+- Comandi Rapidi: `?registra=pullman|pullman1|macchina|macchina1|altro|nonlavoro|corsa` registra oggi.
