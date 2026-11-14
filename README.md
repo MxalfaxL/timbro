@@ -9,7 +9,7 @@ App: **https://mxalfaxl.github.io/timbro/**
 
 - Si apre sempre su **oggi**. Di base è giorno di lavoro: un tocco su 🚌 Pullman (andata e ritorno),
   🚗 Macchina o 🤝 Altro e la giornata è registrata. Se non lavoro, «Non lavoro».
-- Pullman e macchina hanno sotto la scelta «Andata e ritorno» o un viaggio solo (per i giorni in cui
+- Pullman, macchina e altro hanno sotto la scelta «Andata e ritorno» o un viaggio solo (per i giorni in cui
   si va e si torna in date diverse, per esempio dormendo fuori).
 - Le corse in pullman fuori dal lavoro si aggiungono col **+** («Altre corse in pullman»).
 - Frecce, settimana in alto o **Calendario** per tornare ai giorni passati; i giorni dimenticati sono in rosso.
@@ -50,7 +50,8 @@ Un comando con l'azione «Apri URL» registra la giornata di oggi con un tocco o
 | `https://mxalfaxl.github.io/timbro/?registra=pullman1` | lavoro in pullman, una corsa |
 | `https://mxalfaxl.github.io/timbro/?registra=macchina` | lavoro in macchina, andata e ritorno |
 | `https://mxalfaxl.github.io/timbro/?registra=macchina1` | lavoro in macchina, un viaggio solo |
-| `https://mxalfaxl.github.io/timbro/?registra=altro` | lavoro con altro mezzo |
+| `https://mxalfaxl.github.io/timbro/?registra=altro` | lavoro con altro mezzo, andata e ritorno |
+| `https://mxalfaxl.github.io/timbro/?registra=altro1` | lavoro con altro mezzo, un viaggio solo |
 | `https://mxalfaxl.github.io/timbro/?registra=nonlavoro` | non lavoro |
 | `https://mxalfaxl.github.io/timbro/?registra=corsa` | una corsa extra in pullman (+1) |
 

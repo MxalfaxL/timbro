@@ -72,6 +72,25 @@ test('macchina: andata e ritorno o un viaggio solo, senza toccare le corse in pu
   assert.equal(r.giorniTrattaSola, 3);
 });
 
+test('altro: anche lì andata e ritorno o un viaggio solo', () => {
+  let g = M.applica(undefined, { tipo: 'mezzo', valore: 'altro', alterna: true }, 1);
+  assert.equal(M.tratte(g), 2);
+  assert.equal(M.descrivi(g), 'lavoro con altro mezzo, andata e ritorno');
+  g = M.applica(g, { tipo: 'corseLavoro', valore: 1 }, 2);
+  assert.equal(g.mezzo, 'altro');
+  assert.equal(M.viaggiAltro(g), 1);
+  assert.equal(M.viaggiMacchina(g), 0);
+  assert.equal(M.corseTotali(g), 0);
+  assert.equal(M.descrivi(M.applica(undefined, M.AZIONI_URL.altro1, 3)), 'lavoro con altro mezzo, un viaggio solo');
+  const s = M.statoVuoto();
+  s.giorni['2026-11-13'] = { ...g };
+  s.giorni['2026-11-14'] = { lavoro: true, mezzo: 'altro', corseLavoro: 2, extra: 0, t: 1 };
+  const r = M.riepilogo(s, '2026-11-13', '2026-11-14');
+  assert.equal(r.altro, 2);
+  assert.equal(r.viaggiAltro, 3);
+  assert.equal(r.giorniTrattaSola, 1);
+});
+
 test('comandi da URL', () => {
   const g = M.applica(undefined, M.AZIONI_URL.pullman1, 1);
   assert.equal(M.corseTotali(g), 1);
