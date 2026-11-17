@@ -16,8 +16,8 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icona-180.png?v=2">
 <link rel="icon" type="image/png" href="icona-192.png?v=2">
-<link rel="modulepreload" href="motore.js?v=2026.11.14">
-<link rel="modulepreload" href="sincro.js?v=2026.11.14">
+<link rel="modulepreload" href="motore.js?v=2026.11.17">
+<link rel="modulepreload" href="sincro.js?v=2026.11.17">
 <style>
 :root{
   --fondo:#F5F2EC; --carta:#FFFFFF; --inch:#1C1E23; --grigio:#6C7078; --linea:#E6E0D6; --tenue:#EDE8DF;
@@ -124,6 +124,26 @@ button:disabled{cursor:default}
 .segmenti.ar.grigio button{color:var(--inch)}
 .segmenti.ar.grigio button[aria-pressed=true]{background:var(--altro);color:var(--fondo)}
 
+.sedi{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.sede{height:44px;border-radius:12px;border:2px solid var(--linea);font-weight:750;font-size:15px}
+.sede small{display:block;font-size:10px;font-weight:600;color:var(--grigio);margin-top:-2px}
+.sede[aria-pressed=true]{border-color:var(--inch);background:var(--tenue)}
+.sede.tappe{font-size:12px;font-weight:700;color:var(--grigio);line-height:1.15}
+.sede.tappe[aria-pressed=true]{color:var(--inch)}
+.giro{margin-top:10px;padding:10px 12px;border-radius:13px;background:var(--tenue)}
+.giro-testa{display:flex;justify-content:space-between;align-items:center;font-size:14px}
+.giro-tappe{display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin:8px 0}
+.giro-tappe .tappa{padding:4px 10px;border-radius:99px;background:var(--carta);border:1px solid var(--linea);font-size:13px;font-weight:700}
+.giro-tappe .freccina{color:var(--grigio);font-weight:700}
+.giro-tappe .vuoto{font-size:13px;color:var(--grigio)}
+.giro-aggiungi{display:grid;grid-template-columns:repeat(4,1fr) 44px;gap:6px}
+.giro-aggiungi button{height:40px;border-radius:10px;background:var(--carta);border:1px solid var(--linea);font-weight:700;font-size:14px}
+.giro-aggiungi button:disabled{opacity:.35}
+.link-piccolo{font-size:13px;font-weight:700;color:var(--bus);padding:4px 0}
+.km-riga{display:block;width:100%;text-align:left;margin-top:12px;padding:9px 12px;border-radius:12px;background:var(--tenue);
+  font-size:13px;color:var(--grigio);line-height:1.35}
+.km-riga b{color:var(--inch)}
+.km-riga.manca{color:var(--rosso);background:var(--rosso-tinta)}
 .contatore{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .contatore b{display:block;font-size:15px}
 .contatore small{color:var(--grigio);font-size:13px}
@@ -271,6 +291,16 @@ button:disabled{cursor:default}
 .campo input:focus{outline:2px solid var(--bus);outline-offset:-1px}
 .due{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
 .campo input{min-width:0;max-width:100%}
+.distanze{display:grid;gap:8px}
+.dist{display:grid;grid-template-columns:1fr 104px;align-items:center;gap:10px}
+.dist span{font-weight:700;font-size:15px}
+.dist small{display:block;font-weight:500;font-size:11px;color:var(--grigio)}
+.dist .km{display:flex;align-items:center;gap:6px}
+.dist input{width:100%;height:44px;border-radius:12px;border:1px solid var(--linea);background:var(--fondo);color:var(--inch);
+  padding:0 10px;font:inherit;font-size:17px;text-align:right;-webkit-appearance:none;appearance:none}
+.dist input:focus{outline:2px solid var(--bus);outline-offset:-1px}
+.dist input.vuota{border-color:var(--rosso)}
+.dist .km b{font-size:13px;color:var(--grigio)}
 .campo input[type=date]{font-size:16px;padding:0 10px}
 .campo input[type=date]::-webkit-date-and-time-value{text-align:left}
 .bottoni{display:flex;gap:8px;flex-wrap:wrap}
@@ -363,10 +393,26 @@ button:disabled{cursor:default}
             <button class="mezzo" data-azione="mezzo" data-valore="macchina"><span class="emoji">🚗</span>Macchina</button>
             <button class="mezzo" data-azione="mezzo" data-valore="altro"><span class="emoji">🤝</span>Altro<small>passaggio…</small></button>
           </div>
+          <div id="bloccoSede" hidden>
+            <p class="domanda">Dove hai lavorato?</p>
+            <div class="sedi" id="sedi"></div>
+          </div>
           <div class="segmenti ar" id="segAR">
             <button data-azione="ar" data-valore="2">Andata e ritorno</button>
             <button data-azione="ar" data-valore="1" id="arUno">Una corsa sola</button>
           </div>
+          <div class="giro" id="giro" hidden>
+            <div class="giro-testa"><b>Giro a più tappe</b>
+              <button class="link-piccolo" data-azione="giro-modifica" id="giroModifica">Modifica</button>
+              <button class="link-piccolo" data-azione="giro-fine" id="giroFine">Fine</button></div>
+            <div class="giro-tappe" id="giroTappe"></div>
+            <div id="giroEditor">
+              <p class="piccola" style="margin:0 0 8px">Tocca i posti nell'ordine in cui ti sei mosso, dalla partenza all'arrivo.</p>
+              <div class="giro-aggiungi" id="giroAggiungi"></div>
+            </div>
+            <button class="link-piccolo" data-azione="giro-semplice" style="margin-top:10px">Torna ad andata e ritorno semplice</button>
+          </div>
+          <button class="km-riga" id="kmRiga" data-azione="vai-distanze" hidden></button>
         </div>
       </div>
 
@@ -443,6 +489,17 @@ button:disabled{cursor:default}
         <label class="campo" style="margin-bottom:0"><span>Conto le corse dal</span><input type="date" id="iTraccia" data-imp="inizioTracciamento"></label>
       </div>
 
+      <div class="scheda" id="sezioneDistanze">
+        <h3>Distanze e benzina</h3>
+        <p class="piccola">I chilometri tra i posti, uguali all'andata e al ritorno. Servono per contare i km di ogni giornata e la benzina della macchina.</p>
+        <div class="distanze" id="distanze"></div>
+        <div class="due" style="margin-top:12px">
+          <label class="campo"><span>Benzina (€ al litro)</span><input id="iBenzina" data-imp="prezzoBenzina" data-tipo="numero" inputmode="decimal"></label>
+          <label class="campo"><span>Km con un litro</span><input id="iConsumo" data-imp="consumo" data-tipo="numero" inputmode="decimal"></label>
+        </div>
+        <p class="piccola" id="notaEuroKm" style="margin:0"></p>
+      </div>
+
       <div class="scheda" id="sezioneGit">
         <h3>Salvataggio su GitHub</h3>
         <p class="piccola" id="notaGit"></p>
@@ -488,10 +545,10 @@ button:disabled{cursor:default}
 <div class="tira" id="tira" aria-hidden="true"><i>↓</i><span>Tira per aggiornare</span></div>
 
 <script type="module">
-import * as M from './motore.js?v=2026.11.14';
-import { creaSincro, allinea, ErroreGit } from './sincro.js?v=2026.11.14';
+import * as M from './motore.js?v=2026.11.17';
+import { creaSincro, allinea, ErroreGit } from './sincro.js?v=2026.11.17';
 
-const VERSIONE_APP = '2026.11.14';
+const VERSIONE_APP = '2026.11.17';
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 
@@ -513,6 +570,7 @@ const salvaGit = () => archivio.scrivi(K.git, JSON.stringify(git));
 const imp = () => stato.impostazioni;
 
 let sel = M.oggi();
+let giroAperto = false, bozzaGiro = null;   // editor del giro a più tappe (solo interfaccia)
 let seguiOggi = true;         // se l'app resta aperta oltre la mezzanotte, torna su oggi
 let meseCal = M.meseDi(sel);
 let vista = 'giorno';
@@ -560,6 +618,7 @@ function modifica(azione, k = sel) {
 const limiteFuturo = () => M.spostaGiorni(M.oggi(), 366);
 
 function selezionaGiorno(k) {
+  giroAperto = false; bozzaGiro = null;
   const min = imp().inizioTracciamento, max = limiteFuturo();
   sel = k < min ? min : k > max ? max : k;
   seguiOggi = sel === M.oggi();
@@ -574,6 +633,49 @@ function classeGiorno(g, k, oggiK) {
   if (M.esiste(g) && g.lavoro === false) return (M.corseExtra(g) ? 'libero corse' : 'libero') + futuro;
   if (M.completo(g)) return g.mezzo + (M.tratte(g) === 1 ? ' uno' : '') + futuro;
   return k < oggiK ? 'manca' : futuro.trim();
+}
+
+const nomeTratto = (a, b) => `${M.nomeLuogo(a)}–${M.nomeLuogo(b)}`;
+const tappeHtml = p => p.map((id, i) => (i ? '<span class="freccina">→</span>' : '') + `<span class="tappa">${M.nomeLuogo(id)}</span>`).join('');
+
+function disegnaGiro(g, visibile, aMano) {
+  const box = $('#giro');
+  box.hidden = !visibile || !(aMano || giroAperto);
+  if (box.hidden) return;
+  const tappe = giroAperto ? (bozzaGiro || []) : aMano;
+  $('#giroTappe').innerHTML = tappe.length ? tappeHtml(tappe) : '<span class="vuoto">Da dove sei partito?</span>';
+  $('#giroEditor').hidden = !giroAperto;
+  $('#giroModifica').hidden = giroAperto;
+  $('#giroFine').hidden = !giroAperto;
+  const ultimo = tappe[tappe.length - 1];
+  $('#giroAggiungi').innerHTML = M.LUOGHI.map(l => `<button data-azione="tappa" data-valore="${l.id}" ${l.id === ultimo ? 'disabled' : ''}>${l.nome}</button>`).join('')
+    + `<button data-azione="togli-tappa" aria-label="Togli l'ultima tappa" ${tappe.length ? '' : 'disabled'}>↶</button>`;
+}
+
+function disegnaKm(g, visibile) {
+  const el = $('#kmRiga');
+  el.hidden = !visibile;
+  if (!visibile) return;
+  el.classList.remove('manca');
+  const p = M.percorso(g);
+  if (!p) { el.innerHTML = 'Scegli dove hai lavorato per contare i chilometri.'; return; }
+  const km = M.kmGiorno(g, imp());
+  const giro = p.map(M.nomeLuogo).join(' → ');
+  if (km === null) {
+    const i = p.findIndex((id, n) => n > 0 && M.distanza(imp(), p[n - 1], id) === null);
+    el.classList.add('manca');
+    el.innerHTML = `${giro}: manca la distanza <b>${nomeTratto(p[i - 1], p[i])}</b>. Tocca qui per inserirla.`;
+    return;
+  }
+  const benzina = g.mezzo === 'macchina' ? ` · <b>${euro(km * M.euroKm(imp()))}</b> di benzina` : '';
+  el.innerHTML = `${giro} · <b>${fNum1.format(km)} km</b>${benzina}`;
+}
+
+function salvaBozza() {
+  const g = stato.giorni[sel];
+  if (bozzaGiro.length >= 2) modifica({ tipo: 'percorso', valore: bozzaGiro });
+  else if (M.percorsoAMano(g)) modifica({ tipo: 'percorso', valore: [] });
+  else ridisegna();
 }
 
 function disegnaGiorno() {
@@ -592,7 +694,14 @@ function disegnaGiorno() {
   $$('#segLavoro button').forEach(b => b.setAttribute('aria-pressed', String((b.dataset.valore === '1') === lav)));
   $('#bloccoMezzo').hidden = !lav;
   $$('.mezzo').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.valore === mezzo)));
-  $('#segAR').hidden = !(lav && M.MEZZI_CON_TRATTE.includes(mezzo));
+  const aMano = M.percorsoAMano(g), modoGiro = !!(aMano || giroAperto);
+  $('#bloccoSede').hidden = !(lav && mezzo);
+  const sede = M.esiste(g) ? g.sede : null;
+  $('#sedi').innerHTML = M.SEDI.map(s => `<button class="sede" data-azione="sede" data-valore="${s.id}" aria-pressed="${!modoGiro && sede === s.id}" title="${s.lungo}">${s.nome}</button>`).join('')
+    + `<button class="sede tappe" data-azione="giro-apri" aria-pressed="${modoGiro}">Più<br>tappe</button>`;
+  $('#segAR').hidden = !(lav && M.MEZZI_CON_TRATTE.includes(mezzo)) || modoGiro;
+  disegnaGiro(g, lav && mezzo, aMano);
+  disegnaKm(g, lav && mezzo);
   $('#segAR').classList.toggle('auto', mezzo === 'macchina');
   $('#segAR').classList.toggle('grigio', mezzo === 'altro');
   $('#arUno').textContent = mezzo === 'pullman' ? 'Una corsa sola' : 'Un viaggio solo';
@@ -655,6 +764,9 @@ function disegnaCalendario() {
     <p><b>${plur(r.corse, 'corsa', 'corse')} in pullman</b> <span class="piccola">(${r.corseLavoro} per lavoro, ${r.corseExtra} extra)</span></p>
     ${r.viaggiMacchina ? `<p><b>${plur(r.viaggiMacchina, 'viaggio', 'viaggi')} in macchina</b></p>` : ''}
     ${r.viaggiAltro ? `<p><b>${plur(r.viaggiAltro, 'viaggio', 'viaggi')} con altro mezzo</b></p>` : ''}
+    ${r.kmMacchina || r.kmPullman || r.kmAltro ? `<p><b>${fNum1.format(r.kmMacchina + r.kmPullman + r.kmAltro)} km per lavoro</b>
+      <span class="piccola">(🚗 ${fNum1.format(r.kmMacchina)} · 🚌 ${fNum1.format(r.kmPullman)}${r.kmAltro ? ' · 🤝 ' + fNum1.format(r.kmAltro) : ''})</span>
+      ${r.benzina ? `<br><span class="piccola">Benzina in macchina: <b>${euro(r.benzina)}</b></span>` : ''}</p>` : ''}
     ${r.daRegistrare ? `<p style="color:var(--rosso);font-weight:600">${plur(r.daRegistrare, 'giorno', 'giorni')} ancora da registrare</p>` : '<p class="piccola">Tutti i giorni fino a oggi registrati ✓</p>'}${notaAvanti}`;
 }
 
@@ -739,6 +851,39 @@ function attivaGrafico(c) {
     if (e.pointerType !== 'mouse') return;
     sugg.hidden = true; mir.setAttribute('visibility', 'hidden');
   });
+}
+
+function schedaKm(c) {
+  const t = c.tot, km = t.kmMacchina + t.kmPullman + t.kmAltro;
+  const mancaDistanza = !M.COPPIE.every(([a, b]) => M.distanza(c.imp, a, b) !== null);
+  const sedi = M.SEDI.filter(s => t.sedi[s.id]).map(s => `${s.nome} <b>${t.sedi[s.id]}</b>`).join(' · ');
+  const nota = t.giorniSenzaKm
+    ? `<div class="nota-box rosso">${t.giorniSenzaKm === 1 ? '1 giorno di lavoro' : t.giorniSenzaKm + ' giorni di lavoro'} senza sede${mancaDistanza ? ' o con una distanza mancante' : ''}: i loro km non sono contati.
+       ${mancaDistanza ? '<button class="link-piccolo" data-azione="apri-distanze">Completa le distanze</button>' : ''}</div>` : '';
+  if (!km) return `<div class="scheda"><h3>Chilometri e benzina</h3>
+    <p class="piccola">Quando scegli dove hai lavorato (VSL, Mestre, DL) qui compaiono i km fatti e la benzina spesa in macchina.</p>${nota}</div>`;
+  return `<div class="scheda">
+    <h3>Chilometri e benzina</h3>
+    <div class="confronto" style="grid-template-columns:1fr 1fr 1fr">
+      <div><span>Km per lavoro</span><b>${fNum1.format(km)}</b><small>dal ${fBreve.format(M.daChiave(c.da))}</small></div>
+      <div><span>Benzina</span><b>${euro(t.benzina)}</b><small>${fNum1.format(t.litri)} litri</small></div>
+      <div><span>Risparmiata</span><b>${euro(c.benzinaRisparmiata)}</b><small>grazie al pullman</small></div>
+    </div>
+    <div class="righe" style="margin-top:12px">
+      <div class="riga"><span>🚗</span><span>Macchina</span><span class="q">${fNum1.format(t.kmMacchina)} km</span><span class="p">${euro(t.benzina)}</span></div>
+      <div class="riga"><span>🚌</span><span>Pullman</span><span class="q">${fNum1.format(t.kmPullman)} km</span><span class="p"></span></div>
+      ${t.kmAltro ? `<div class="riga"><span>🤝</span><span>Altro</span><span class="q">${fNum1.format(t.kmAltro)} km</span><span class="p"></span></div>` : ''}
+    </div>
+    ${sedi ? `<p class="piccola" style="margin-top:10px">Giorni per sede: ${sedi}.</p>` : ''}
+    <table class="tabella" style="margin-top:10px">
+      <tr><th>Mese</th><th>Km auto</th><th>Benzina</th><th>Km bus</th></tr>
+      ${c.mesi.map(m => `<tr><td>${cap(fMeseBreve.format(M.daChiave(m.mese + '-01')))}</td><td>${fNum1.format(m.kmMacchina)}</td>
+        <td>${euro(m.benzina)}</td><td>${fNum1.format(m.kmPullman)}</td></tr>`).join('')}
+    </table>
+    <p class="piccola" style="margin-top:10px">Benzina a ${euro(c.imp.prezzoBenzina)} al litro, ${fNum1.format(c.imp.consumo)} km con un litro: ${euro(c.euroKm)} al km.
+      «Risparmiata» è la benzina che avresti speso facendo in macchina i km fatti in pullman (parcheggi esclusi).</p>
+    ${nota}
+  </div>`;
 }
 
 function disegnaConti() {
@@ -838,6 +983,8 @@ function disegnaConti() {
     <p class="piccola" style="margin-top:12px">${plur(t.nonLavoro, 'giorno', 'giorni')} senza lavoro. In pullman: ${plur(t.corseLavoro, 'corsa', 'corse')} per lavoro e ${t.corseExtra} extra.${t.giorniTrattaSola ? ` ${t.giorniTrattaSola === 1 ? '1 giorno' : t.giorniTrattaSola + ' giorni'} con un viaggio solo (andata o ritorno).` : ''}</p>
   </div>
 
+  ${schedaKm(c)}
+
   <div class="scheda">
     <h3>Mese per mese</h3>
     <table class="tabella">
@@ -855,12 +1002,20 @@ function disegnaConti() {
 function disegnaImpostazioni() {
   const i = imp();
   const valori = { iPrezzo: i.prezzoAnnuale, iListino: i.prezzoListino ?? M.IMPOSTAZIONI_BASE.prezzoListino, iInizio: i.inizioAbbonamento, iScadenza: i.scadenzaAbbonamento,
-    iSingolo: i.singolo, iMensile: i.mensile, iCarnet: i.carnetPrezzo, iCarnetCorse: i.carnetCorse, iTraccia: i.inizioTracciamento };
+    iSingolo: i.singolo, iMensile: i.mensile, iCarnet: i.carnetPrezzo, iCarnetCorse: i.carnetCorse, iTraccia: i.inizioTracciamento,
+    iBenzina: i.prezzoBenzina ?? M.IMPOSTAZIONI_BASE.prezzoBenzina, iConsumo: i.consumo ?? M.IMPOSTAZIONI_BASE.consumo };
   for (const [id, v] of Object.entries(valori)) {
     const inp = $('#' + id);
     if (document.activeElement !== inp) inp.value = typeof v === 'number' ? (Number.isInteger(v) ? String(v) : v.toFixed(2).replace('.', ',')) : v;
   }
   $('#notaPrezzo').hidden = !!i.prezzoConfermato;
+  for (const inp of $$('[data-dist]')) {
+    const v = Number(i.distanze?.[inp.dataset.dist]);
+    if (document.activeElement !== inp) inp.value = v > 0 ? String(v).replace('.', ',') : '';
+    inp.classList.toggle('vuota', !(v > 0));
+  }
+  const ek = M.euroKm({ ...M.IMPOSTAZIONI_BASE, ...i });
+  $('#notaEuroKm').innerHTML = ek ? `In macchina ogni km ti costa <b>${euro(ek)}</b> di benzina (${fNum1.format(100 / (i.consumo || 13))} litri ogni 100 km).` : '';
   if (document.activeElement !== $('#gUtente')) $('#gUtente').value = git.utente;
   if (document.activeElement !== $('#gRepo')) $('#gRepo').value = git.repo;
   $('#gToken').placeholder = git.token ? '•••••• salvato su questo dispositivo' : 'github_pat_…';
@@ -954,6 +1109,34 @@ document.addEventListener('click', e => {
     case 'lavoro': return void modifica({ tipo: 'lavoro', valore: b.dataset.valore === '1' });
     case 'mezzo': return void modifica({ tipo: 'mezzo', valore: b.dataset.valore, alterna: true });
     case 'ar': return void modifica({ tipo: 'corseLavoro', valore: Number(b.dataset.valore) });
+    case 'sede': giroAperto = false; bozzaGiro = null; return void modifica({ tipo: 'sede', valore: b.dataset.valore });
+    case 'giro-apri': case 'giro-modifica': {
+      const g = stato.giorni[sel];
+      bozzaGiro = M.percorsoAMano(g) ? [...g.percorso] : (M.esiste(g) && g.sede ? ['casa', g.sede] : ['casa']);
+      giroAperto = true;
+      return ridisegna();
+    }
+    case 'tappa':
+      if (bozzaGiro && bozzaGiro[bozzaGiro.length - 1] !== b.dataset.valore) bozzaGiro.push(b.dataset.valore);
+      return salvaBozza();
+    case 'togli-tappa':
+      bozzaGiro?.pop();
+      return salvaBozza();
+    case 'giro-fine':
+      giroAperto = false; bozzaGiro = null;
+      return ridisegna();
+    case 'giro-semplice':
+      giroAperto = false; bozzaGiro = null;
+      if (M.percorsoAMano(stato.giorni[sel])) return void modifica({ tipo: 'percorso', valore: [] });
+      return ridisegna();
+    case 'apri-distanze': case 'vai-distanze': {
+      if (b.dataset.azione === 'vai-distanze' && !$('#kmRiga').classList.contains('manca')) return;
+      vai('impostazioni');
+      const sez = $('#sezioneDistanze');
+      sez.scrollIntoView({ block: 'start', behavior: 'smooth' });
+      sez.classList.remove('evidenzia'); void sez.offsetWidth; sez.classList.add('evidenzia');
+      return;
+    }
     case 'piu': return void modifica({ tipo: 'extra', delta: 1 });
     case 'meno': return void modifica({ tipo: 'extra', delta: -1 });
     case 'svuota':
@@ -986,6 +1169,24 @@ $('#v-giorno').addEventListener('touchend', e => {
   tocco = null;
   if (Math.abs(dx) > 70 && Math.abs(dy) < 45) selezionaGiorno(M.spostaGiorni(sel, dx < 0 ? 1 : -1));
 }, { passive: true });
+
+/* la tabellina delle distanze: una riga per coppia di posti */
+const lungo = id => M.LUOGHI.find(l => l.id === id).lungo;
+$('#distanze').innerHTML = M.COPPIE.map(([a, b]) => `<label class="dist"><span>${M.nomeLuogo(a)} ↔ ${M.nomeLuogo(b)}
+    <small>${lungo(a)} – ${lungo(b)}</small></span>
+  <span class="km"><input data-dist="${M.chiaveTratto(a, b)}" inputmode="decimal" autocomplete="off" placeholder="—"><b>km</b></span></label>`).join('');
+$$('[data-dist]').forEach(inp => inp.addEventListener('change', () => {
+  const testo = inp.value.trim().replace(',', '.');
+  const v = testo === '' ? null : Number(testo);
+  if (v !== null && !(Number.isFinite(v) && v > 0 && v < 1000)) { avvisa('Distanza non valida'); disegnaImpostazioni(); return; }
+  const distanze = { ...(imp().distanze || {}) };
+  if (v === null) Reflect.deleteProperty(distanze, inp.dataset.dist);
+  else distanze[inp.dataset.dist] = Math.round(v * 10) / 10;
+  stato.impostazioni = { ...imp(), distanze, t: Date.now() };
+  salvaStato(); modificati.add('impostazioni'); salvaMod();
+  ridisegna(); pianificaSincro();
+  avvisa('Distanza salvata');
+}));
 
 $$('[data-imp]').forEach(inp => inp.addEventListener('change', () => {
   const campo = inp.dataset.imp;
@@ -1026,14 +1227,17 @@ $('#btnScollega').addEventListener('click', () => {
   $('#esitoGit').textContent = '';
 });
 
+const kmCsv = g => { const km = M.kmGiorno(g, imp()); return km === null ? '' : String(km).replace('.', ','); };
 $('#btnCsv').addEventListener('click', () => {
-  const righe = [['Data', 'Giorno', 'Lavoro', 'Mezzo', 'Corse per lavoro', 'Corse extra', 'Corse totali', 'Viaggi in macchina', 'Viaggi con altro mezzo']];
+  const righe = [['Data', 'Giorno', 'Lavoro', 'Mezzo', 'Corse per lavoro', 'Corse extra', 'Corse totali', 'Viaggi in macchina', 'Viaggi con altro mezzo', 'Sede', 'Percorso', 'Km', 'Benzina €']];
   const ultimoSegnato = Object.keys(stato.giorni).sort().pop() || M.oggi();
   for (const k of M.giorniDa(imp().inizioTracciamento, ultimoSegnato > M.oggi() ? ultimoSegnato : M.oggi())) {
     const g = stato.giorni[k], d = M.daChiave(k), c = M.esiste(g);
     righe.push([d.toLocaleDateString('it-IT'), fGiornoSett.format(d),
       c ? (g.lavoro === false ? 'no' : 'sì') : '', c && g.lavoro !== false ? (g.mezzo || '') : '',
-      M.corseLavoro(g), M.corseExtra(g), M.corseTotali(g), M.viaggiMacchina(g), M.viaggiAltro(g)]);
+      M.corseLavoro(g), M.corseExtra(g), M.corseTotali(g), M.viaggiMacchina(g), M.viaggiAltro(g),
+      c && g.sede ? M.nomeLuogo(g.sede) : '', (M.percorso(g) || []).map(M.nomeLuogo).join(' → '),
+      kmCsv(g), g?.mezzo === 'macchina' && M.kmGiorno(g, imp()) !== null ? (M.kmGiorno(g, imp()) * M.euroKm(imp())).toFixed(2).replace('.', ',') : '']);
   }
   const csv = '﻿' + righe.map(r => r.join(';')).join('\r\n');
   const a = document.createElement('a');
@@ -1112,7 +1316,9 @@ addEventListener('online', () => sincronizza());
   history.replaceState(null, '', location.pathname);
   const azione = M.AZIONI_URL[nome];
   if (!azione) { setTimeout(() => avvisa(`Comando «${nome}» non riconosciuto`, 3500), 50); return; }
-  const g = modifica(azione, M.oggi());
+  let g = modifica(azione, M.oggi());
+  const sede = p.get('sede');
+  if (sede && M.SEDI.some(s => s.id === sede)) g = modifica({ tipo: 'sede', valore: sede }, M.oggi());
   setTimeout(() => { timbra(); avvisa('✓ Oggi: ' + M.descrivi(g), 3500); }, 50);
 })();
 // #calendario, #conti, #impostazioni aprono direttamente quella pagina (comodo anche da Comandi Rapidi)

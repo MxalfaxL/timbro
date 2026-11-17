@@ -5,6 +5,22 @@
 export const VERSIONE_DATI = 1;
 export const MEZZI = ['pullman', 'macchina', 'altro'];
 
+/* I posti tra cui ci si muove. Casa è sempre il punto di partenza di base;
+   le sedi di lavoro sono gli altri. Le distanze stanno nelle impostazioni,
+   una per coppia (uguali all'andata e al ritorno). */
+export const LUOGHI = Object.freeze([
+  { id: 'casa', nome: 'Casa', lungo: 'Casa' },
+  { id: 'vsl', nome: 'VSL', lungo: 'Venezia Santa Lucia' },
+  { id: 'mestre', nome: 'Mestre', lungo: 'Venezia Mestre' },
+  { id: 'dl', nome: 'DL', lungo: 'Deposito di Marghera' },
+]);
+export const SEDI = LUOGHI.filter(l => l.id !== 'casa');
+const ID_LUOGHI = LUOGHI.map(l => l.id), ID_SEDI = SEDI.map(l => l.id);
+export const nomeLuogo = id => LUOGHI.find(l => l.id === id)?.nome ?? id;
+export const chiaveTratto = (a, b) => [a, b].sort().join('-');
+export const COPPIE = Object.freeze([['casa', 'vsl'], ['casa', 'mestre'], ['casa', 'dl'],
+                                     ['vsl', 'mestre'], ['vsl', 'dl'], ['mestre', 'dl']]);
+
 export const IMPOSTAZIONI_BASE = Object.freeze({
   prezzoAnnuale: 210,            // quello pagato (in promozione)
   prezzoConfermato: false,
@@ -16,6 +32,9 @@ export const IMPOSTAZIONI_BASE = Object.freeze({
   carnetPrezzo: 14,
   carnetCorse: 10,
   mensile: 37,
+  distanze: {},                  // { 'casa-mestre': km, ... } chiave da chiaveTratto()
+  prezzoBenzina: 1.94,           // € al litro
+  consumo: 13,                   // km con un litro
   t: 0,
 });
 
@@ -37,29 +56,69 @@ export function* giorniDa(da, a) { for (let k = da; k <= a; k = spostaGiorni(k, 
 
 /* ---------- la giornata ----------
    { lavoro: true|false, mezzo: 'pullman'|'macchina'|'altro'|null,
-     corseLavoro: 1|2, extra: n, t: ms }
+     corseLavoro: 1|2, extra: n, sede?: 'vsl'|'mestre'|'dl', percorso?: [luoghi], t: ms }
    corseLavoro = tratte del tragitto di lavoro (2 andata e ritorno, 1 un viaggio solo):
    vale per tutti i mezzi: per il pullman sono corse da pagare, per macchina e altro statistica.
+   sede = dove si è lavorato: di base il percorso è Casa → sede → Casa (o solo Casa → sede).
+   percorso = giro a più tappe scelto a mano (es. Casa → Mestre → DL → Casa): se c'è,
+   comanda lui e le tratte sono i suoi tratti.
    Svuotata: { vuoto: true, t } — resta come lapide, così l'altro dispositivo
    capisce che è stata cancellata e non la fa ricomparire. */
 
 export const esiste = g => !!g && !g.vuoto;
 export const lavora = g => !esiste(g) || g.lavoro !== false;          // di base è giorno di lavoro
 export const completo = g => esiste(g) && (g.lavoro === false || MEZZI.includes(g.mezzo));
-export const corseLavoro = g => (esiste(g) && g.lavoro !== false && g.mezzo === 'pullman') ? (g.corseLavoro === 1 ? 1 : 2) : 0;
+export const corseLavoro = g => g?.mezzo === 'pullman' ? tratte(g) : 0;
 export const corseExtra = g => esiste(g) ? Math.max(0, g.extra | 0) : 0;
 export const corseTotali = g => corseLavoro(g) + corseExtra(g);
 export const MEZZI_CON_TRATTE = MEZZI;
-export const tratte = g => (esiste(g) && g.lavoro !== false && MEZZI_CON_TRATTE.includes(g.mezzo)) ? (g.corseLavoro === 1 ? 1 : 2) : 0;
+const percorsoValido = g => (Array.isArray(g?.percorso) && g.percorso.length >= 2
+  && g.percorso.every(id => ID_LUOGHI.includes(id))) ? g.percorso : null;
+export const percorsoAMano = g => (esiste(g) && percorsoValido(g)) || null;
+export function tratte(g) {
+  if (!(esiste(g) && g.lavoro !== false && MEZZI.includes(g.mezzo))) return 0;
+  const p = percorsoValido(g);
+  return p ? p.length - 1 : (g.corseLavoro === 1 ? 1 : 2);
+}
 export const viaggiMacchina = g => g?.mezzo === 'macchina' ? tratte(g) : 0;
 export const viaggiAltro = g => g?.mezzo === 'altro' ? tratte(g) : 0;
+
+/* Il giro della giornata: quello a mano, oppure quello di base dalla sede. null se non si sa. */
+export function percorso(g) {
+  if (!tratte(g)) return null;
+  const p = percorsoValido(g);
+  if (p) return p;
+  if (ID_SEDI.includes(g.sede)) return tratte(g) === 2 ? ['casa', g.sede, 'casa'] : ['casa', g.sede];
+  return null;
+}
+
+export function distanza(imp, a, b) {
+  if (a === b) return 0;
+  const v = Number(imp?.distanze?.[chiaveTratto(a, b)]);
+  return v > 0 ? v : null;
+}
+
+/* Chilometri del tragitto di lavoro; null se manca la sede o una distanza. */
+export function kmGiorno(g, imp) {
+  const p = percorso(g);
+  if (!p) return null;
+  let km = 0;
+  for (let i = 1; i < p.length; i++) {
+    const d = distanza(imp, p[i - 1], p[i]);
+    if (d === null) return null;
+    km += d;
+  }
+  return km;
+}
+export const euroKm = imp => (imp.prezzoBenzina > 0 && imp.consumo > 0) ? imp.prezzoBenzina / imp.consumo : 0;
 
 export function applica(g, azione, ora = Date.now()) {
   if (azione.tipo === 'svuota') return { vuoto: true, t: ora };
   const n = esiste(g)
     ? { lavoro: g.lavoro !== false, mezzo: MEZZI.includes(g.mezzo) ? g.mezzo : null,
-        corseLavoro: g.corseLavoro === 1 ? 1 : 2, extra: corseExtra(g) }
-    : { lavoro: true, mezzo: null, corseLavoro: 2, extra: 0 };
+        corseLavoro: g.corseLavoro === 1 ? 1 : 2, extra: corseExtra(g),
+        sede: ID_SEDI.includes(g.sede) ? g.sede : null, percorso: percorsoValido(g) ? [...g.percorso] : null }
+    : { lavoro: true, mezzo: null, corseLavoro: 2, extra: 0, sede: null, percorso: null };
   switch (azione.tipo) {
     case 'lavoro':
       n.lavoro = !!azione.valore;
@@ -73,13 +132,31 @@ export function applica(g, azione, ora = Date.now()) {
       n.lavoro = true;
       if (!MEZZI_CON_TRATTE.includes(n.mezzo)) n.mezzo = 'pullman';
       n.corseLavoro = azione.valore === 1 ? 1 : 2;
+      n.percorso = null;                       // si torna al giro semplice dalla sede
       break;
+    case 'sede':
+      n.lavoro = true;
+      n.sede = azione.alterna && n.sede === azione.valore ? null : (ID_SEDI.includes(azione.valore) ? azione.valore : null);
+      n.percorso = null;
+      break;
+    case 'percorso': {
+      n.lavoro = true;
+      const p = (azione.valore || []).filter(id => ID_LUOGHI.includes(id));
+      n.percorso = p.length >= 2 ? p : null;
+      if (n.percorso) {
+        n.sede = p.find(id => id !== 'casa') ?? n.sede;   // la prima sede del giro
+        n.corseLavoro = p.length - 1 === 1 ? 1 : 2;       // per chi ha ancora l'app vecchia
+      }
+      break;
+    }
     case 'extra':
       n.extra = Math.min(20, Math.max(0, n.extra + (azione.delta | 0)));
       break;
     default:
       throw new Error('azione sconosciuta: ' + azione.tipo);
   }
+  if (!n.sede) delete n.sede;
+  if (!n.percorso) delete n.percorso;
   n.t = ora;
   return n;
 }
@@ -96,14 +173,17 @@ export const AZIONI_URL = Object.freeze({
   corsa:     { tipo: 'extra', delta: 1 },
 });
 
+const COME = { pullman: 'in pullman', macchina: 'in macchina', altro: 'con altro mezzo' };
 export function descrivi(g) {
   if (!esiste(g)) return 'giornata svuotata';
   const parti = [];
   if (g.lavoro === false) parti.push('non lavoro');
-  else if (g.mezzo === 'pullman') parti.push(`lavoro in pullman, ${corseLavoro(g) === 2 ? 'andata e ritorno' : 'una corsa'}`);
-  else if (g.mezzo === 'macchina') parti.push(`lavoro in macchina, ${tratte(g) === 2 ? 'andata e ritorno' : 'un viaggio solo'}`);
-  else if (g.mezzo === 'altro') parti.push(`lavoro con altro mezzo, ${tratte(g) === 2 ? 'andata e ritorno' : 'un viaggio solo'}`);
-  else parti.push('lavoro, mezzo da indicare');
+  else if (!COME[g.mezzo]) parti.push('lavoro, mezzo da indicare');
+  else if (percorsoValido(g)) parti.push(`lavoro ${COME[g.mezzo]}, ${g.percorso.map(nomeLuogo).join(' → ')}`);
+  else {
+    const quanto = tratte(g) === 2 ? 'andata e ritorno' : g.mezzo === 'pullman' ? 'una corsa' : 'un viaggio solo';
+    parti.push(`lavoro ${COME[g.mezzo]}, ${quanto}` + (ID_SEDI.includes(g.sede) ? `, ${nomeLuogo(g.sede)}` : ''));
+  }
   const e = corseExtra(g);
   if (e) parti.push(`${e} ${e === 1 ? 'corsa extra' : 'corse extra'}`);
   return parti.join(', ');
@@ -152,9 +232,12 @@ const contatore = () => ({
   corse: 0, corseLavoro: 0, corseExtra: 0,
   giorniLavoro: 0, pullman: 0, macchina: 0, altro: 0, nonLavoro: 0,
   viaggiMacchina: 0, viaggiAltro: 0, giorniTrattaSola: 0,
+  kmMacchina: 0, kmPullman: 0, kmAltro: 0, litri: 0, benzina: 0, giorniSenzaKm: 0,
+  sedi: Object.fromEntries(ID_SEDI.map(id => [id, 0])),
 });
 
-function somma(c, g) {
+const KM = { pullman: 'kmPullman', macchina: 'kmMacchina', altro: 'kmAltro' };
+function somma(c, g, imp) {
   c.giorni++;
   if (completo(g)) c.registrati++; else c.daRegistrare++;
   const cl = corseLavoro(g), ce = corseExtra(g);
@@ -164,7 +247,16 @@ function somma(c, g) {
   if (tratte(g) === 1) c.giorniTrattaSola++;
   if (esiste(g)) {
     if (g.lavoro === false) c.nonLavoro++;
-    else if (MEZZI.includes(g.mezzo)) { c.giorniLavoro++; c[g.mezzo]++; }
+    else if (MEZZI.includes(g.mezzo)) {
+      c.giorniLavoro++; c[g.mezzo]++;
+      if (ID_SEDI.includes(g.sede)) c.sedi[g.sede]++;
+      const km = kmGiorno(g, imp);
+      if (km === null) c.giorniSenzaKm++;
+      else {
+        c[KM[g.mezzo]] += km;
+        if (g.mezzo === 'macchina' && imp.consumo > 0) { c.litri += km / imp.consumo; c.benzina += km * euroKm(imp); }
+      }
+    }
   }
 }
 
@@ -173,8 +265,8 @@ export const costoAnno = (o, corseSettimana, durata = 365) =>
   o.fisso != null ? o.fisso : o.perCorsa * corseSettimana * durata / 7;
 
 export function riepilogo(stato, da, a) {
-  const c = contatore();
-  if (a >= da) for (const k of giorniDa(da, a)) somma(c, stato.giorni[k]);
+  const c = contatore(), imp = { ...IMPOSTAZIONI_BASE, ...stato.impostazioni };
+  if (a >= da) for (const k of giorniDa(da, a)) somma(c, stato.giorni[k], imp);
   return c;
 }
 
@@ -191,8 +283,8 @@ export function conti(stato, finoA = oggi()) {
   let mese = null;
   if (a >= da) for (const k of giorniDa(da, a)) {
     if (!mese || mese.mese !== meseDi(k)) { mese = { mese: meseDi(k), ...contatore() }; mesi.push(mese); }
-    somma(mese, stato.giorni[k]);
-    somma(tot, stato.giorni[k]);
+    somma(mese, stato.giorni[k], imp);
+    somma(tot, stato.giorni[k], imp);
   }
   for (const m of mesi) {
     m.carnet = m.corse * prezzoCorsa;
@@ -228,6 +320,8 @@ export function conti(stato, finoA = oggi()) {
 
   return {
     imp, prezzoCorsa, durata, quotaGiorno, da, a, mesi, tot, opzioni,
+    euroKm: euroKm(imp),
+    benzinaRisparmiata: tot.kmPullman * euroKm(imp),   // la benzina che avresti speso facendo quei km in macchina
     carnet: tot.corse * prezzoCorsa,
     singoli: tot.corse * imp.singolo,
     migliore, quota, risparmio: migliore - quota,

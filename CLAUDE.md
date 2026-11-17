@@ -20,6 +20,10 @@ Tutto in italiano: interfaccia, codice, commenti, messaggi di commit.
   mezzi: per il pullman sono corse da pagare (`corseLavoro()`), per macchina e altro statistica
   (`viaggiMacchina()`, `viaggiAltro()`).
   Unione tra dispositivi: vince la giornata (e le impostazioni) con `t` più recente.
+  Luoghi fissi in `LUOGHI` (casa, vsl, mestre, dl). Giornata con `sede` (giro di base Casa → sede → Casa,
+  o solo andata se `corseLavoro` 1) oppure `percorso` a mano (array di luoghi, ≥2): se c'è comanda lui e le
+  tratte sono i suoi tratti (in pullman ogni tratto è una corsa). `kmGiorno()` usa
+  `impostazioni.distanze` (chiave `chiaveTratto(a, b)`, simmetrica) e restituisce null se manca sede o distanza.
 - `sincro.js`: API Contents di GitHub (GET + PUT con sha; su 409 si rilegge e si riprova).
 - `index.html`: interfaccia e orchestrazione (salvataggio locale immediato, sincronizzazione dopo 600 ms).
 - `sw.js`: cache-first del guscio (scaricato con `cache: 'reload'`). **A ogni modifica dell'app
@@ -42,4 +46,5 @@ Tutto in italiano: interfaccia, codice, commenti, messaggi di commit.
 - «Tira giù per aggiornare» fatto a mano (la web app su iPhone non ce l'ha): `sincronizza()` +
   `reg.update()`; se c'è una versione nuova ricarica la pagina.
 - Il tracciamento parte dal 1 novembre 2026.
-- Comandi Rapidi: `?registra=pullman|pullman1|macchina|macchina1|altro|altro1|nonlavoro|corsa` registra oggi.
+- Comandi Rapidi: `?registra=pullman|pullman1|macchina|macchina1|altro|altro1|nonlavoro|corsa` registra oggi,
+  con `&sede=vsl|mestre|dl` facoltativo.

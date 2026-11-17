@@ -91,6 +91,59 @@ test('altro: anche lì andata e ritorno o un viaggio solo', () => {
   assert.equal(r.giorniTrattaSola, 1);
 });
 
+test('sedi e percorsi: chilometri, tratte, benzina', () => {
+  const imp = { ...M.IMPOSTAZIONI_BASE, distanze: { 'casa-mestre': 8, 'casa-dl': 9, 'dl-mestre': 5, 'casa-vsl': 15 } };
+  // sede semplice: andata e ritorno verso Mestre
+  let g = M.applica(undefined, { tipo: 'mezzo', valore: 'macchina' }, 1);
+  assert.equal(M.kmGiorno(g, imp), null);                       // sede non indicata
+  g = M.applica(g, { tipo: 'sede', valore: 'mestre' }, 2);
+  assert.deepEqual(M.percorso(g), ['casa', 'mestre', 'casa']);
+  assert.equal(M.kmGiorno(g, imp), 16);
+  assert.equal(M.descrivi(g), 'lavoro in macchina, andata e ritorno, Mestre');
+  g = M.applica(g, { tipo: 'corseLavoro', valore: 1 }, 3);       // dormo fuori: solo andata
+  assert.deepEqual(M.percorso(g), ['casa', 'mestre']);
+  assert.equal(M.kmGiorno(g, imp), 8);
+  // giro a più tappe: Casa → Mestre → DL → Casa
+  g = M.applica(g, { tipo: 'percorso', valore: ['casa', 'mestre', 'dl', 'casa'] }, 4);
+  assert.equal(M.kmGiorno(g, imp), 22);
+  assert.equal(M.tratte(g), 3);
+  assert.equal(g.sede, 'mestre');
+  assert.equal(M.descrivi(g), 'lavoro in macchina, Casa → Mestre → DL → Casa');
+  // il giorno dopo: parto da VSL, passo dal deposito, torno a casa (VSL–DL mancante)
+  const dopo = M.applica(undefined, { tipo: 'percorso', valore: ['vsl', 'dl', 'casa'] }, 5);
+  assert.equal(M.kmGiorno({ ...dopo, mezzo: 'macchina' }, imp), null);
+  // in pullman ogni tratto del giro è una corsa
+  const bus = M.applica(g, { tipo: 'mezzo', valore: 'pullman' }, 6);
+  assert.equal(M.corseLavoro(bus), 3);
+  // tornare ad andata e ritorno semplice cancella il giro e tiene la sede
+  const semplice = M.applica(g, { tipo: 'corseLavoro', valore: 2 }, 7);
+  assert.equal(semplice.percorso, undefined);
+  assert.deepEqual(M.percorso(semplice), ['casa', 'mestre', 'casa']);
+  // scegliere una sede toglie il giro
+  assert.deepEqual(M.percorso(M.applica(g, { tipo: 'sede', valore: 'vsl' }, 8)), ['casa', 'vsl', 'casa']);
+  // un giorno di non lavoro non ha chilometri
+  assert.equal(M.kmGiorno(M.applica(g, { tipo: 'lavoro', valore: false }, 9), imp), null);
+  assert.equal(M.distanza(imp, 'mestre', 'casa'), 8);            // uguale nei due sensi
+});
+
+test('conti: chilometri, litri, benzina spesa e risparmiata', () => {
+  const s = M.statoVuoto();
+  s.impostazioni = { ...s.impostazioni, distanze: { 'casa-mestre': 8, 'casa-dl': 9, 'dl-mestre': 5 }, prezzoBenzina: 1.95, consumo: 13 };
+  s.giorni['2026-11-02'] = { lavoro: true, mezzo: 'macchina', corseLavoro: 2, extra: 0, sede: 'mestre', percorso: ['casa', 'mestre', 'dl', 'casa'], t: 1 };
+  s.giorni['2026-11-03'] = { lavoro: true, mezzo: 'pullman', corseLavoro: 2, extra: 0, sede: 'mestre', t: 1 };
+  s.giorni['2026-11-04'] = { lavoro: true, mezzo: 'macchina', corseLavoro: 2, extra: 0, t: 1 };   // sede non indicata
+  const c = M.conti(s, '2026-11-04');
+  assert.equal(c.tot.kmMacchina, 22);
+  assert.equal(c.tot.kmPullman, 16);
+  assert.equal(c.tot.giorniSenzaKm, 1);
+  assert.ok(Math.abs(c.tot.litri - 22 / 13) < 1e-9);
+  assert.ok(Math.abs(c.tot.benzina - 22 * 1.95 / 13) < 1e-9);           // 3,30 €
+  assert.ok(Math.abs(c.benzinaRisparmiata - 16 * 1.95 / 13) < 1e-9);    // 2,40 €
+  assert.equal(c.tot.corse, 2);                                         // il giro in macchina non tocca le corse
+  assert.equal(c.mesi[0].kmMacchina, 22);
+  assert.deepEqual(c.tot.sedi, { vsl: 0, mestre: 2, dl: 0 });
+});
+
 test('comandi da URL', () => {
   const g = M.applica(undefined, M.AZIONI_URL.pullman1, 1);
   assert.equal(M.corseTotali(g), 1);
