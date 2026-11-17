@@ -55,8 +55,8 @@ test('macchina: andata e ritorno o un viaggio solo, senza toccare le corse in pu
   g = M.applica(g, { tipo: 'corseLavoro', valore: 1 }, 2);
   assert.equal(g.mezzo, 'macchina');                       // resta macchina, non diventa pullman
   assert.equal(M.viaggiMacchina(g), 1);
-  assert.equal(M.descrivi(g), 'lavoro in macchina, un viaggio solo');
-  assert.equal(M.descrivi(M.applica(undefined, M.AZIONI_URL.macchina1, 3)), 'lavoro in macchina, un viaggio solo');
+  assert.equal(M.descrivi(g), 'lavoro in macchina, solo andata');
+  assert.equal(M.descrivi(M.applica(undefined, M.AZIONI_URL.macchina1, 3)), 'lavoro in macchina, solo andata');
   assert.equal(M.descrivi(M.applica(g, M.AZIONI_URL.macchina, 4)), 'lavoro in macchina, andata e ritorno');
   g = M.applica(g, { tipo: 'lavoro', valore: false }, 5);
   assert.equal(M.tratte(g), 0);                            // non lavoro: niente tratte
@@ -81,7 +81,7 @@ test('altro: anche lì andata e ritorno o un viaggio solo', () => {
   assert.equal(M.viaggiAltro(g), 1);
   assert.equal(M.viaggiMacchina(g), 0);
   assert.equal(M.corseTotali(g), 0);
-  assert.equal(M.descrivi(M.applica(undefined, M.AZIONI_URL.altro1, 3)), 'lavoro con altro mezzo, un viaggio solo');
+  assert.equal(M.descrivi(M.applica(undefined, M.AZIONI_URL.altro1, 3)), 'lavoro con altro mezzo, solo andata');
   const s = M.statoVuoto();
   s.giorni['2026-11-13'] = { ...g };
   s.giorni['2026-11-14'] = { lavoro: true, mezzo: 'altro', corseLavoro: 2, extra: 0, t: 1 };
@@ -144,11 +144,46 @@ test('conti: chilometri, litri, benzina spesa e risparmiata', () => {
   assert.deepEqual(c.tot.sedi, { vsl: 0, mestre: 2, dl: 0 });
 });
 
+test('solo andata e solo ritorno, per tutti i mezzi', () => {
+  const imp = { ...M.IMPOSTAZIONI_BASE, distanze: { 'casa-mestre': 3, 'casa-vsl': 9 } };
+  for (const mezzo of ['pullman', 'macchina', 'altro']) {
+    let g = M.applica(undefined, { tipo: 'mezzo', valore: mezzo }, 1);
+    g = M.applica(g, { tipo: 'sede', valore: 'mestre' }, 2);
+    g = M.applica(g, { tipo: 'corseLavoro', valore: 1, verso: 'ritorno' }, 3);
+    assert.equal(M.tratte(g), 1);
+    assert.ok(M.ritorno(g));
+    assert.deepEqual(M.percorso(g), ['mestre', 'casa']);
+    assert.equal(M.kmGiorno(g, imp), 3);
+    assert.match(M.descrivi(g), /solo ritorno, Mestre$/);
+    const andata = M.applica(g, { tipo: 'corseLavoro', valore: 1, verso: 'andata' }, 4);
+    assert.deepEqual(M.percorso(andata), ['casa', 'mestre']);
+    assert.equal(andata.verso, undefined);
+    const ar = M.applica(g, { tipo: 'corseLavoro', valore: 2 }, 5);
+    assert.equal(ar.verso, undefined);                        // con andata e ritorno il verso non serve
+    assert.equal(M.tratte(ar), 2);
+  }
+  // cambiare sede o mezzo tiene il verso
+  let g = M.applica(undefined, M.AZIONI_URL.macchinaritorno, 1);
+  g = M.applica(g, { tipo: 'sede', valore: 'vsl' }, 2);
+  assert.deepEqual(M.percorso(g), ['vsl', 'casa']);
+  assert.equal(M.corseLavoro(M.applica(g, { tipo: 'mezzo', valore: 'pullman' }, 3)), 1);
+  // un "giro" di due punti con Casa diventa solo andata / solo ritorno semplice
+  const r = M.applica(undefined, { tipo: 'percorso', valore: ['mestre', 'casa'] }, 4);
+  assert.equal(r.percorso, undefined);
+  assert.equal(r.sede, 'mestre');
+  assert.ok(M.ritorno({ ...r, mezzo: 'macchina' }));
+  const a = M.applica(undefined, { tipo: 'percorso', valore: ['casa', 'vsl'] }, 5);
+  assert.equal(a.percorso, undefined);
+  assert.ok(!M.ritorno({ ...a, mezzo: 'macchina' }));
+  // un giro vero resta un giro
+  assert.deepEqual(M.applica(undefined, { tipo: 'percorso', valore: ['vsl', 'dl'] }, 6).percorso, ['vsl', 'dl']);
+});
+
 test('comandi da URL', () => {
   const g = M.applica(undefined, M.AZIONI_URL.pullman1, 1);
   assert.equal(M.corseTotali(g), 1);
-  assert.equal(M.descrivi(g), 'lavoro in pullman, una corsa');
-  assert.equal(M.descrivi(M.applica(g, M.AZIONI_URL.corsa, 2)), 'lavoro in pullman, una corsa, 1 corsa extra');
+  assert.equal(M.descrivi(g), 'lavoro in pullman, solo andata');
+  assert.equal(M.descrivi(M.applica(g, M.AZIONI_URL.corsa, 2)), 'lavoro in pullman, solo andata, 1 corsa extra');
   assert.equal(M.descrivi(M.applica(undefined, M.AZIONI_URL.nonlavoro, 1)), 'non lavoro');
 });
 

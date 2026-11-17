@@ -16,8 +16,8 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icona-180.png?v=2">
 <link rel="icon" type="image/png" href="icona-192.png?v=2">
-<link rel="modulepreload" href="motore.js?v=2026.11.17">
-<link rel="modulepreload" href="sincro.js?v=2026.11.17">
+<link rel="modulepreload" href="motore.js?v=2026.11.17-2">
+<link rel="modulepreload" href="sincro.js?v=2026.11.17-2">
 <style>
 :root{
   --fondo:#F5F2EC; --carta:#FFFFFF; --inch:#1C1E23; --grigio:#6C7078; --linea:#E6E0D6; --tenue:#EDE8DF;
@@ -114,7 +114,8 @@ button:disabled{cursor:default}
 .mezzo[data-valore=pullman][aria-pressed=true]{border-color:var(--bus);background:var(--bus-tinta);color:var(--bus)}
 .mezzo[data-valore=macchina][aria-pressed=true]{border-color:var(--auto);background:var(--auto-tinta);color:var(--auto)}
 .mezzo[data-valore=altro][aria-pressed=true]{border-color:var(--altro);background:var(--altro-tinta)}
-.segmenti.ar{margin-top:10px;background:var(--bus-tinta)}
+.segmenti.ar{margin-top:10px;background:var(--bus-tinta);grid-template-columns:1.25fr 1fr 1fr}
+.segmenti.ar button{font-size:14px;line-height:1.1;padding:0 4px}
 .segmenti.ar button{color:var(--bus)}
 .segmenti.ar button[aria-pressed=true]{background:var(--bus);color:#fff}
 .segmenti.ar.auto{background:var(--auto-tinta)}
@@ -399,7 +400,8 @@ button:disabled{cursor:default}
           </div>
           <div class="segmenti ar" id="segAR">
             <button data-azione="ar" data-valore="2">Andata e ritorno</button>
-            <button data-azione="ar" data-valore="1" id="arUno">Una corsa sola</button>
+            <button data-azione="ar" data-valore="andata">Solo andata</button>
+            <button data-azione="ar" data-valore="ritorno">Solo ritorno</button>
           </div>
           <div class="giro" id="giro" hidden>
             <div class="giro-testa"><b>Giro a più tappe</b>
@@ -545,10 +547,10 @@ button:disabled{cursor:default}
 <div class="tira" id="tira" aria-hidden="true"><i>↓</i><span>Tira per aggiornare</span></div>
 
 <script type="module">
-import * as M from './motore.js?v=2026.11.17';
-import { creaSincro, allinea, ErroreGit } from './sincro.js?v=2026.11.17';
+import * as M from './motore.js?v=2026.11.17-2';
+import { creaSincro, allinea, ErroreGit } from './sincro.js?v=2026.11.17-2';
 
-const VERSIONE_APP = '2026.11.17';
+const VERSIONE_APP = '2026.11.17-2';
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 
@@ -704,9 +706,9 @@ function disegnaGiorno() {
   disegnaKm(g, lav && mezzo);
   $('#segAR').classList.toggle('auto', mezzo === 'macchina');
   $('#segAR').classList.toggle('grigio', mezzo === 'altro');
-  $('#arUno').textContent = mezzo === 'pullman' ? 'Una corsa sola' : 'Un viaggio solo';
-  const cl = M.esiste(g) && g.corseLavoro === 1 ? 1 : 2;
-  $$('#segAR button').forEach(b => b.setAttribute('aria-pressed', String(Number(b.dataset.valore) === cl)));
+
+  const scelta = !M.esiste(g) || g.corseLavoro !== 1 ? '2' : (M.ritorno(g) ? 'ritorno' : 'andata');
+  $$('#segAR button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.valore === scelta)));
 
   const extra = M.corseExtra(g);
   $('#extra').textContent = extra;
@@ -1025,8 +1027,8 @@ function disegnaImpostazioni() {
   $('#btnScollega').hidden = !git.token;
 
   const base = location.origin + location.pathname.replace(/index\.html$/, '');
-  const voci = [['pullman', 'Lavoro in pullman, andata e ritorno'], ['pullman1', 'Lavoro in pullman, una corsa'],
-    ['macchina', 'Lavoro in macchina, andata e ritorno'], ['macchina1', 'Lavoro in macchina, un viaggio solo'], ['altro', 'Lavoro con altro mezzo, andata e ritorno'], ['altro1', 'Lavoro con altro mezzo, un viaggio solo'], ['nonlavoro', 'Oggi non lavoro'], ['corsa', 'Una corsa extra in pullman']];
+  const voci = [['pullman', 'Lavoro in pullman, andata e ritorno'], ['pullman1', 'Lavoro in pullman, solo andata'], ['pullmanritorno', 'Lavoro in pullman, solo ritorno'],
+    ['macchina', 'Lavoro in macchina, andata e ritorno'], ['macchina1', 'Lavoro in macchina, solo andata'], ['macchinaritorno', 'Lavoro in macchina, solo ritorno'], ['altro', 'Lavoro con altro mezzo, andata e ritorno'], ['altro1', 'Lavoro con altro mezzo, solo andata'], ['altroritorno', 'Lavoro con altro mezzo, solo ritorno'], ['nonlavoro', 'Oggi non lavoro'], ['corsa', 'Una corsa extra in pullman']];
   $('#scorciatoie').innerHTML = voci.map(([v, nome]) => `<li><div><b>${nome}</b><code>${base}?registra=${v}</code></div>`
     + `<button data-azione="copia" data-testo="${base}?registra=${v}">Copia</button></li>`).join('');
   $('#versione').textContent = `Timbro · versione ${VERSIONE_APP}`;
@@ -1108,7 +1110,10 @@ document.addEventListener('click', e => {
     case 'oggi': return selezionaGiorno(M.oggi());
     case 'lavoro': return void modifica({ tipo: 'lavoro', valore: b.dataset.valore === '1' });
     case 'mezzo': return void modifica({ tipo: 'mezzo', valore: b.dataset.valore, alterna: true });
-    case 'ar': return void modifica({ tipo: 'corseLavoro', valore: Number(b.dataset.valore) });
+    case 'ar': {
+      const v = b.dataset.valore;
+      return void modifica(v === '2' ? { tipo: 'corseLavoro', valore: 2 } : { tipo: 'corseLavoro', valore: 1, verso: v });
+    }
     case 'sede': giroAperto = false; bozzaGiro = null; return void modifica({ tipo: 'sede', valore: b.dataset.valore });
     case 'giro-apri': case 'giro-modifica': {
       const g = stato.giorni[sel];

@@ -56,7 +56,8 @@ export function* giorniDa(da, a) { for (let k = da; k <= a; k = spostaGiorni(k, 
 
 /* ---------- la giornata ----------
    { lavoro: true|false, mezzo: 'pullman'|'macchina'|'altro'|null,
-     corseLavoro: 1|2, extra: n, sede?: 'vsl'|'mestre'|'dl', percorso?: [luoghi], t: ms }
+     corseLavoro: 1|2, verso?: 'ritorno', extra: n, sede?: 'vsl'|'mestre'|'dl', percorso?: [luoghi], t: ms }
+   Con un viaggio solo (corseLavoro 1) `verso` dice se è il ritorno; senza, è l'andata.
    corseLavoro = tratte del tragitto di lavoro (2 andata e ritorno, 1 un viaggio solo):
    vale per tutti i mezzi: per il pullman sono corse da pagare, per macchina e altro statistica.
    sede = dove si è lavorato: di base il percorso è Casa → sede → Casa (o solo Casa → sede).
@@ -75,6 +76,7 @@ export const MEZZI_CON_TRATTE = MEZZI;
 const percorsoValido = g => (Array.isArray(g?.percorso) && g.percorso.length >= 2
   && g.percorso.every(id => ID_LUOGHI.includes(id))) ? g.percorso : null;
 export const percorsoAMano = g => (esiste(g) && percorsoValido(g)) || null;
+export const ritorno = g => esiste(g) && g.corseLavoro === 1 && g.verso === 'ritorno' && !percorsoValido(g);
 export function tratte(g) {
   if (!(esiste(g) && g.lavoro !== false && MEZZI.includes(g.mezzo))) return 0;
   const p = percorsoValido(g);
@@ -88,7 +90,10 @@ export function percorso(g) {
   if (!tratte(g)) return null;
   const p = percorsoValido(g);
   if (p) return p;
-  if (ID_SEDI.includes(g.sede)) return tratte(g) === 2 ? ['casa', g.sede, 'casa'] : ['casa', g.sede];
+  if (ID_SEDI.includes(g.sede)) {
+    if (tratte(g) === 2) return ['casa', g.sede, 'casa'];
+    return ritorno(g) ? [g.sede, 'casa'] : ['casa', g.sede];
+  }
   return null;
 }
 
@@ -116,9 +121,9 @@ export function applica(g, azione, ora = Date.now()) {
   if (azione.tipo === 'svuota') return { vuoto: true, t: ora };
   const n = esiste(g)
     ? { lavoro: g.lavoro !== false, mezzo: MEZZI.includes(g.mezzo) ? g.mezzo : null,
-        corseLavoro: g.corseLavoro === 1 ? 1 : 2, extra: corseExtra(g),
-        sede: ID_SEDI.includes(g.sede) ? g.sede : null, percorso: percorsoValido(g) ? [...g.percorso] : null }
-    : { lavoro: true, mezzo: null, corseLavoro: 2, extra: 0, sede: null, percorso: null };
+        corseLavoro: g.corseLavoro === 1 ? 1 : 2, verso: g.corseLavoro === 1 && g.verso === 'ritorno' ? 'ritorno' : null,
+        extra: corseExtra(g), sede: ID_SEDI.includes(g.sede) ? g.sede : null, percorso: percorsoValido(g) ? [...g.percorso] : null }
+    : { lavoro: true, mezzo: null, corseLavoro: 2, verso: null, extra: 0, sede: null, percorso: null };
   switch (azione.tipo) {
     case 'lavoro':
       n.lavoro = !!azione.valore;
@@ -126,12 +131,16 @@ export function applica(g, azione, ora = Date.now()) {
     case 'mezzo':
       n.lavoro = true;
       n.mezzo = azione.alterna && n.mezzo === azione.valore ? null : azione.valore;
-      if (azione.corse) n.corseLavoro = azione.corse === 1 ? 1 : 2;
+      if (azione.corse) {
+        n.corseLavoro = azione.corse === 1 ? 1 : 2;
+        n.verso = n.corseLavoro === 1 && azione.verso === 'ritorno' ? 'ritorno' : null;
+      }
       break;
     case 'corseLavoro':
       n.lavoro = true;
       if (!MEZZI_CON_TRATTE.includes(n.mezzo)) n.mezzo = 'pullman';
       n.corseLavoro = azione.valore === 1 ? 1 : 2;
+      n.verso = n.corseLavoro === 1 && azione.verso === 'ritorno' ? 'ritorno' : null;
       n.percorso = null;                       // si torna al giro semplice dalla sede
       break;
     case 'sede':
@@ -143,7 +152,13 @@ export function applica(g, azione, ora = Date.now()) {
       n.lavoro = true;
       const p = (azione.valore || []).filter(id => ID_LUOGHI.includes(id));
       n.percorso = p.length >= 2 ? p : null;
-      if (n.percorso) {
+      // Casa → sede o sede → Casa non è un giro: è solo andata o solo ritorno verso quella sede
+      const sedeSola = p.length === 2 && p.includes('casa') && p.find(id => ID_SEDI.includes(id));
+      if (sedeSola) {
+        n.percorso = null; n.sede = sedeSola; n.corseLavoro = 1;
+        n.verso = p[0] === 'casa' ? null : 'ritorno';
+      } else if (n.percorso) {
+        n.verso = null;
         n.sede = p.find(id => id !== 'casa') ?? n.sede;   // la prima sede del giro
         n.corseLavoro = p.length - 1 === 1 ? 1 : 2;       // per chi ha ancora l'app vecchia
       }
@@ -155,6 +170,7 @@ export function applica(g, azione, ora = Date.now()) {
     default:
       throw new Error('azione sconosciuta: ' + azione.tipo);
   }
+  if (n.corseLavoro !== 1 || n.verso !== 'ritorno') delete n.verso;
   if (!n.sede) delete n.sede;
   if (!n.percorso) delete n.percorso;
   n.t = ora;
@@ -165,10 +181,13 @@ export function applica(g, azione, ora = Date.now()) {
 export const AZIONI_URL = Object.freeze({
   pullman:   { tipo: 'mezzo', valore: 'pullman', corse: 2 },
   pullman1:  { tipo: 'mezzo', valore: 'pullman', corse: 1 },
+  pullmanritorno:  { tipo: 'mezzo', valore: 'pullman', corse: 1, verso: 'ritorno' },
   macchina:  { tipo: 'mezzo', valore: 'macchina', corse: 2 },
   macchina1: { tipo: 'mezzo', valore: 'macchina', corse: 1 },
+  macchinaritorno: { tipo: 'mezzo', valore: 'macchina', corse: 1, verso: 'ritorno' },
   altro:     { tipo: 'mezzo', valore: 'altro', corse: 2 },
   altro1:    { tipo: 'mezzo', valore: 'altro', corse: 1 },
+  altroritorno:    { tipo: 'mezzo', valore: 'altro', corse: 1, verso: 'ritorno' },
   nonlavoro: { tipo: 'lavoro', valore: false },
   corsa:     { tipo: 'extra', delta: 1 },
 });
@@ -181,7 +200,7 @@ export function descrivi(g) {
   else if (!COME[g.mezzo]) parti.push('lavoro, mezzo da indicare');
   else if (percorsoValido(g)) parti.push(`lavoro ${COME[g.mezzo]}, ${g.percorso.map(nomeLuogo).join(' → ')}`);
   else {
-    const quanto = tratte(g) === 2 ? 'andata e ritorno' : g.mezzo === 'pullman' ? 'una corsa' : 'un viaggio solo';
+    const quanto = tratte(g) === 2 ? 'andata e ritorno' : ritorno(g) ? 'solo ritorno' : 'solo andata';
     parti.push(`lavoro ${COME[g.mezzo]}, ${quanto}` + (ID_SEDI.includes(g.sede) ? `, ${nomeLuogo(g.sede)}` : ''));
   }
   const e = corseExtra(g);
