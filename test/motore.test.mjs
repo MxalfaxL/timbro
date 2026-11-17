@@ -179,6 +179,35 @@ test('solo andata e solo ritorno, per tutti i mezzi', () => {
   assert.deepEqual(M.applica(undefined, { tipo: 'percorso', valore: ['vsl', 'dl'] }, 6).percorso, ['vsl', 'dl']);
 });
 
+test('turno che comincia in una sede e finisce in un\'altra', () => {
+  const imp = { ...M.IMPOSTAZIONI_BASE, distanze: { 'casa-dl': 5, 'casa-vsl': 9, 'dl-vsl': 11, 'casa-mestre': 3 } };
+  // 1 novembre: pullman Casa → DL, a fine turno VSL → Casa
+  let g = M.applica(undefined, { tipo: 'mezzo', valore: 'pullman' }, 1);
+  g = M.applica(g, { tipo: 'sede', valore: 'dl' }, 2);
+  g = M.applica(g, { tipo: 'sedeFine', valore: 'vsl' }, 3);
+  assert.deepEqual(M.tratti(g), [['casa', 'dl'], ['vsl', 'casa']]);
+  assert.equal(M.percorso(g), null);                          // non è una catena unica
+  assert.equal(M.testoTratti(M.tratti(g)), 'Casa → DL · VSL → Casa');
+  assert.equal(M.kmGiorno(g, imp), 14);
+  assert.equal(M.corseLavoro(g), 2);                          // due corse, lo spostamento DL → VSL è lavoro
+  assert.equal(M.descrivi(g), 'lavoro in pullman, andata a DL, ritorno da VSL');
+  // in macchina conta anche lo spostamento della macchina
+  const auto = M.applica(g, { tipo: 'mezzo', valore: 'macchina' }, 4);
+  assert.deepEqual(M.percorso(auto), ['casa', 'dl', 'vsl', 'casa']);
+  assert.equal(M.kmGiorno(auto, imp), 25);
+  assert.equal(M.viaggiMacchina(auto), 3);
+  // solo ritorno: parte dalla sede di fine turno
+  const rit = M.applica(g, { tipo: 'corseLavoro', valore: 1, verso: 'ritorno' }, 5);
+  assert.deepEqual(M.tratti(rit), [['vsl', 'casa']]);
+  assert.equal(M.descrivi(rit), 'lavoro in pullman, solo ritorno, VSL');
+  // scegliere di nuovo la sede riporta tutto alla stessa sede
+  const stessa = M.applica(g, { tipo: 'sede', valore: 'mestre' }, 6);
+  assert.equal(stessa.sedeFine, undefined);
+  assert.deepEqual(M.percorso(stessa), ['casa', 'mestre', 'casa']);
+  // fine uguale all'inizio = niente sedeFine
+  assert.equal(M.applica(g, { tipo: 'sedeFine', valore: 'dl' }, 7).sedeFine, undefined);
+});
+
 test('comandi da URL', () => {
   const g = M.applica(undefined, M.AZIONI_URL.pullman1, 1);
   assert.equal(M.corseTotali(g), 1);

@@ -26,6 +26,8 @@ Tutto in italiano: interfaccia, codice, commenti, messaggi di commit.
   `impostazioni.distanze` (chiave `chiaveTratto(a, b)`, simmetrica) e restituisce null se manca sede o distanza.
   Un viaggio solo: `corseLavoro` 1 + `verso: 'ritorno'` (sede → Casa); senza `verso` è l'andata (Casa → sede).
   Un `percorso` di due punti con Casa viene ricondotto a solo andata / solo ritorno.
+  `sedeFine` (facoltativa) = fine turno: `tratti()` dà [Casa→sede, sedeFine→Casa] (pullman/altro) o con in mezzo
+  [sede→sedeFine] (macchina). Km e testi partono da `tratti()`; `percorso()` è la catena solo se i tratti si toccano.
 - `sincro.js`: API Contents di GitHub (GET + PUT con sha; su 409 si rilegge e si riprova).
 - `index.html`: interfaccia e orchestrazione (salvataggio locale immediato, sincronizzazione dopo 600 ms).
 - `sw.js`: cache-first del guscio (scaricato con `cache: 'reload'`). **A ogni modifica dell'app

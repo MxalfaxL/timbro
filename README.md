@@ -17,6 +17,9 @@ App: **https://mxalfaxl.github.io/timbro/**
   Casa → sede → Casa (o solo andata con «un viaggio solo»); con «Più tappe» si compone a mano un giro
   qualsiasi, anche con partenza e arrivo diversi (es. Casa → Mestre → DL → Casa, oppure VSL → DL → Casa).
   Da lì l'app conta i km e, in macchina, la benzina.
+- **Turno che finisce in un'altra sede** («Finito il turno in un'altra sede?»): l'andata va alla sede di inizio,
+  il ritorno parte da quella di fine. In pullman lo spostamento tra le due è lavoro e non conta (2 corse);
+  in macchina conta, perché la macchina l'hai portata tu (es. Casa → DL → VSL → Casa).
 - Si può andare anche **nel futuro** (fino a un anno) e segnare in anticipo: quei giorni entrano nei conti
   solo quando arrivano.
 - **Tira giù** dall'alto della pagina per aggiornare a mano i dati e, se c'è, la versione nuova dell'app.

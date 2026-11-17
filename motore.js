@@ -58,6 +58,9 @@ export function* giorniDa(da, a) { for (let k = da; k <= a; k = spostaGiorni(k, 
    { lavoro: true|false, mezzo: 'pullman'|'macchina'|'altro'|null,
      corseLavoro: 1|2, verso?: 'ritorno', extra: n, sede?: 'vsl'|'mestre'|'dl', percorso?: [luoghi], t: ms }
    Con un viaggio solo (corseLavoro 1) `verso` dice se è il ritorno; senza, è l'andata.
+   sedeFine = dove finisce il turno, se diversa da `sede` (dove comincia): l'andata va a `sede`,
+   il ritorno parte da `sedeFine`. In pullman lo spostamento tra le due è lavoro e non conta;
+   in macchina conta, perché la macchina l'hai portata tu da una sede all'altra.
    corseLavoro = tratte del tragitto di lavoro (2 andata e ritorno, 1 un viaggio solo):
    vale per tutti i mezzi: per il pullman sono corse da pagare, per macchina e altro statistica.
    sede = dove si è lavorato: di base il percorso è Casa → sede → Casa (o solo Casa → sede).
@@ -77,24 +80,50 @@ const percorsoValido = g => (Array.isArray(g?.percorso) && g.percorso.length >= 
   && g.percorso.every(id => ID_LUOGHI.includes(id))) ? g.percorso : null;
 export const percorsoAMano = g => (esiste(g) && percorsoValido(g)) || null;
 export const ritorno = g => esiste(g) && g.corseLavoro === 1 && g.verso === 'ritorno' && !percorsoValido(g);
+export const sedeFine = g => ID_SEDI.includes(g?.sedeFine) && g.sedeFine !== g.sede ? g.sedeFine : (ID_SEDI.includes(g?.sede) ? g.sede : null);
+const fineAltrove = g => ID_SEDI.includes(g?.sede) && sedeFine(g) !== g.sede;
 export function tratte(g) {
   if (!(esiste(g) && g.lavoro !== false && MEZZI.includes(g.mezzo))) return 0;
   const p = percorsoValido(g);
-  return p ? p.length - 1 : (g.corseLavoro === 1 ? 1 : 2);
+  if (p) return p.length - 1;
+  if (g.corseLavoro === 1) return 1;
+  return g.mezzo === 'macchina' && fineAltrove(g) ? 3 : 2;   // in macchina anche lo spostamento tra le sedi
+}
+
+/* I tratti della giornata, ognuno [da, a]; null se non si sa (sede non indicata). */
+export function tratti(g) {
+  if (!tratte(g)) return null;
+  const p = percorsoValido(g);
+  if (p) return p.slice(1).map((b, i) => [p[i], b]);
+  if (!ID_SEDI.includes(g.sede)) return null;
+  const inizio = g.sede, fine = sedeFine(g);
+  if (g.corseLavoro === 1) return ritorno(g) ? [[fine, 'casa']] : [['casa', inizio]];
+  return inizio !== fine && g.mezzo === 'macchina'
+    ? [['casa', inizio], [inizio, fine], [fine, 'casa']]
+    : [['casa', inizio], [fine, 'casa']];
+}
+
+/* "Casa → DL · VSL → Casa": i tratti uniti dove si toccano. */
+export function testoTratti(t) {
+  if (!t?.length) return '';
+  const pezzi = [[t[0][0], t[0][1]]];
+  for (const [a, b] of t.slice(1)) {
+    const ultimo = pezzi[pezzi.length - 1];
+    if (ultimo[ultimo.length - 1] === a) ultimo.push(b); else pezzi.push([a, b]);
+  }
+  return pezzi.map(p => p.map(nomeLuogo).join(' → ')).join(' · ');
 }
 export const viaggiMacchina = g => g?.mezzo === 'macchina' ? tratte(g) : 0;
 export const viaggiAltro = g => g?.mezzo === 'altro' ? tratte(g) : 0;
 
 /* Il giro della giornata: quello a mano, oppure quello di base dalla sede. null se non si sa. */
+/* Il giro come catena di posti, se i tratti si toccano tutti; null altrimenti. */
 export function percorso(g) {
-  if (!tratte(g)) return null;
-  const p = percorsoValido(g);
-  if (p) return p;
-  if (ID_SEDI.includes(g.sede)) {
-    if (tratte(g) === 2) return ['casa', g.sede, 'casa'];
-    return ritorno(g) ? [g.sede, 'casa'] : ['casa', g.sede];
-  }
-  return null;
+  const t = tratti(g);
+  if (!t) return null;
+  const p = [t[0][0], t[0][1]];
+  for (const [a, b] of t.slice(1)) { if (p[p.length - 1] !== a) return null; p.push(b); }
+  return p;
 }
 
 export function distanza(imp, a, b) {
@@ -105,11 +134,11 @@ export function distanza(imp, a, b) {
 
 /* Chilometri del tragitto di lavoro; null se manca la sede o una distanza. */
 export function kmGiorno(g, imp) {
-  const p = percorso(g);
-  if (!p) return null;
+  const t = tratti(g);
+  if (!t) return null;
   let km = 0;
-  for (let i = 1; i < p.length; i++) {
-    const d = distanza(imp, p[i - 1], p[i]);
+  for (const [a, b] of t) {
+    const d = distanza(imp, a, b);
     if (d === null) return null;
     km += d;
   }
@@ -122,8 +151,10 @@ export function applica(g, azione, ora = Date.now()) {
   const n = esiste(g)
     ? { lavoro: g.lavoro !== false, mezzo: MEZZI.includes(g.mezzo) ? g.mezzo : null,
         corseLavoro: g.corseLavoro === 1 ? 1 : 2, verso: g.corseLavoro === 1 && g.verso === 'ritorno' ? 'ritorno' : null,
-        extra: corseExtra(g), sede: ID_SEDI.includes(g.sede) ? g.sede : null, percorso: percorsoValido(g) ? [...g.percorso] : null }
-    : { lavoro: true, mezzo: null, corseLavoro: 2, verso: null, extra: 0, sede: null, percorso: null };
+        extra: corseExtra(g), sede: ID_SEDI.includes(g.sede) ? g.sede : null,
+        sedeFine: ID_SEDI.includes(g.sedeFine) && g.sedeFine !== g.sede ? g.sedeFine : null,
+        percorso: percorsoValido(g) ? [...g.percorso] : null }
+    : { lavoro: true, mezzo: null, corseLavoro: 2, verso: null, extra: 0, sede: null, sedeFine: null, percorso: null };
   switch (azione.tipo) {
     case 'lavoro':
       n.lavoro = !!azione.valore;
@@ -146,6 +177,12 @@ export function applica(g, azione, ora = Date.now()) {
     case 'sede':
       n.lavoro = true;
       n.sede = azione.alterna && n.sede === azione.valore ? null : (ID_SEDI.includes(azione.valore) ? azione.valore : null);
+      n.sedeFine = null;                       // di base il turno finisce dove comincia
+      n.percorso = null;
+      break;
+    case 'sedeFine':
+      n.lavoro = true;
+      n.sedeFine = ID_SEDI.includes(azione.valore) && azione.valore !== n.sede ? azione.valore : null;
       n.percorso = null;
       break;
     case 'percorso': {
@@ -154,6 +191,7 @@ export function applica(g, azione, ora = Date.now()) {
       n.percorso = p.length >= 2 ? p : null;
       // Casa → sede o sede → Casa non è un giro: è solo andata o solo ritorno verso quella sede
       const sedeSola = p.length === 2 && p.includes('casa') && p.find(id => ID_SEDI.includes(id));
+      n.sedeFine = null;
       if (sedeSola) {
         n.percorso = null; n.sede = sedeSola; n.corseLavoro = 1;
         n.verso = p[0] === 'casa' ? null : 'ritorno';
@@ -171,6 +209,7 @@ export function applica(g, azione, ora = Date.now()) {
       throw new Error('azione sconosciuta: ' + azione.tipo);
   }
   if (n.corseLavoro !== 1 || n.verso !== 'ritorno') delete n.verso;
+  if (!n.sede || !n.sedeFine || n.sedeFine === n.sede) delete n.sedeFine;
   if (!n.sede) delete n.sede;
   if (!n.percorso) delete n.percorso;
   n.t = ora;
@@ -200,8 +239,13 @@ export function descrivi(g) {
   else if (!COME[g.mezzo]) parti.push('lavoro, mezzo da indicare');
   else if (percorsoValido(g)) parti.push(`lavoro ${COME[g.mezzo]}, ${g.percorso.map(nomeLuogo).join(' → ')}`);
   else {
-    const quanto = tratte(g) === 2 ? 'andata e ritorno' : ritorno(g) ? 'solo ritorno' : 'solo andata';
-    parti.push(`lavoro ${COME[g.mezzo]}, ${quanto}` + (ID_SEDI.includes(g.sede) ? `, ${nomeLuogo(g.sede)}` : ''));
+    const sede = ID_SEDI.includes(g.sede) ? g.sede : null, fine = sedeFine(g);
+    if (sede && g.corseLavoro !== 1 && fine !== sede) parti.push(`lavoro ${COME[g.mezzo]}, andata a ${nomeLuogo(sede)}, ritorno da ${nomeLuogo(fine)}`);
+    else {
+      const quanto = g.corseLavoro !== 1 ? 'andata e ritorno' : ritorno(g) ? 'solo ritorno' : 'solo andata';
+      const dove = ritorno(g) ? fine : sede;
+      parti.push(`lavoro ${COME[g.mezzo]}, ${quanto}` + (dove ? `, ${nomeLuogo(dove)}` : ''));
+    }
   }
   const e = corseExtra(g);
   if (e) parti.push(`${e} ${e === 1 ? 'corsa extra' : 'corse extra'}`);

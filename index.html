@@ -16,8 +16,8 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icona-180.png?v=2">
 <link rel="icon" type="image/png" href="icona-192.png?v=2">
-<link rel="modulepreload" href="motore.js?v=2026.11.17-2">
-<link rel="modulepreload" href="sincro.js?v=2026.11.17-2">
+<link rel="modulepreload" href="motore.js?v=2026.11.17-3">
+<link rel="modulepreload" href="sincro.js?v=2026.11.17-3">
 <style>
 :root{
   --fondo:#F5F2EC; --carta:#FFFFFF; --inch:#1C1E23; --grigio:#6C7078; --linea:#E6E0D6; --tenue:#EDE8DF;
@@ -395,13 +395,20 @@ button:disabled{cursor:default}
             <button class="mezzo" data-azione="mezzo" data-valore="altro"><span class="emoji">🤝</span>Altro<small>passaggio…</small></button>
           </div>
           <div id="bloccoSede" hidden>
-            <p class="domanda">Dove hai lavorato?</p>
+            <p class="domanda" id="domandaSede">Dove hai lavorato?</p>
             <div class="sedi" id="sedi"></div>
           </div>
           <div class="segmenti ar" id="segAR">
             <button data-azione="ar" data-valore="2">Andata e ritorno</button>
             <button data-azione="ar" data-valore="andata">Solo andata</button>
             <button data-azione="ar" data-valore="ritorno">Solo ritorno</button>
+          </div>
+          <div id="bloccoFine" hidden>
+            <button class="link-piccolo" data-azione="fine-apri" id="fineApri" style="margin-top:8px">Finito il turno in un'altra sede?</button>
+            <div id="fineRiga" hidden>
+              <p class="domanda" style="margin-top:12px">Dove hai finito il turno?</p>
+              <div class="sedi" id="sediFine"></div>
+            </div>
           </div>
           <div class="giro" id="giro" hidden>
             <div class="giro-testa"><b>Giro a più tappe</b>
@@ -547,10 +554,10 @@ button:disabled{cursor:default}
 <div class="tira" id="tira" aria-hidden="true"><i>↓</i><span>Tira per aggiornare</span></div>
 
 <script type="module">
-import * as M from './motore.js?v=2026.11.17-2';
-import { creaSincro, allinea, ErroreGit } from './sincro.js?v=2026.11.17-2';
+import * as M from './motore.js?v=2026.11.17-3';
+import { creaSincro, allinea, ErroreGit } from './sincro.js?v=2026.11.17-3';
 
-const VERSIONE_APP = '2026.11.17-2';
+const VERSIONE_APP = '2026.11.17-3';
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 
@@ -573,6 +580,7 @@ const imp = () => stato.impostazioni;
 
 let sel = M.oggi();
 let giroAperto = false, bozzaGiro = null;   // editor del giro a più tappe (solo interfaccia)
+let fineAperta = false;                     // riga "dove hai finito il turno" aperta
 let seguiOggi = true;         // se l'app resta aperta oltre la mezzanotte, torna su oggi
 let meseCal = M.meseDi(sel);
 let vista = 'giorno';
@@ -620,7 +628,7 @@ function modifica(azione, k = sel) {
 const limiteFuturo = () => M.spostaGiorni(M.oggi(), 366);
 
 function selezionaGiorno(k) {
-  giroAperto = false; bozzaGiro = null;
+  giroAperto = false; bozzaGiro = null; fineAperta = false;
   const min = imp().inizioTracciamento, max = limiteFuturo();
   sel = k < min ? min : k > max ? max : k;
   seguiOggi = sel === M.oggi();
@@ -659,14 +667,14 @@ function disegnaKm(g, visibile) {
   el.hidden = !visibile;
   if (!visibile) return;
   el.classList.remove('manca');
-  const p = M.percorso(g);
-  if (!p) { el.innerHTML = 'Scegli dove hai lavorato per contare i chilometri.'; return; }
+  const tr = M.tratti(g);
+  if (!tr) { el.innerHTML = 'Scegli dove hai lavorato per contare i chilometri.'; return; }
   const km = M.kmGiorno(g, imp());
-  const giro = p.map(M.nomeLuogo).join(' → ');
+  const giro = M.testoTratti(tr);
   if (km === null) {
-    const i = p.findIndex((id, n) => n > 0 && M.distanza(imp(), p[n - 1], id) === null);
+    const [a, b] = tr.find(([x, y]) => M.distanza(imp(), x, y) === null);
     el.classList.add('manca');
-    el.innerHTML = `${giro}: manca la distanza <b>${nomeTratto(p[i - 1], p[i])}</b>. Tocca qui per inserirla.`;
+    el.innerHTML = `${giro}: manca la distanza <b>${nomeTratto(a, b)}</b>. Tocca qui per inserirla.`;
     return;
   }
   const benzina = g.mezzo === 'macchina' ? ` · <b>${euro(km * M.euroKm(imp()))}</b> di benzina` : '';
@@ -698,10 +706,18 @@ function disegnaGiorno() {
   $$('.mezzo').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.valore === mezzo)));
   const aMano = M.percorsoAMano(g), modoGiro = !!(aMano || giroAperto);
   $('#bloccoSede').hidden = !(lav && mezzo);
-  const sede = M.esiste(g) ? g.sede : null;
-  $('#sedi').innerHTML = M.SEDI.map(s => `<button class="sede" data-azione="sede" data-valore="${s.id}" aria-pressed="${!modoGiro && sede === s.id}" title="${s.lungo}">${s.nome}</button>`).join('')
+  const sede = M.esiste(g) ? g.sede : null, fine = M.esiste(g) ? M.sedeFine(g) : null;
+  const soloRitorno = M.ritorno(g), andataRitorno = M.esiste(g) && g.corseLavoro !== 1;
+  $('#domandaSede').textContent = soloRitorno ? 'Da dove sei tornato?' : 'Dove hai lavorato?';
+  const premuta = soloRitorno ? fine : sede;
+  $('#sedi').innerHTML = M.SEDI.map(s => `<button class="sede" data-azione="sede" data-valore="${s.id}" aria-pressed="${!modoGiro && premuta === s.id}" title="${s.lungo}">${s.nome}</button>`).join('')
     + `<button class="sede tappe" data-azione="giro-apri" aria-pressed="${modoGiro}">Più<br>tappe</button>`;
   $('#segAR').hidden = !(lav && M.MEZZI_CON_TRATTE.includes(mezzo)) || modoGiro;
+  const fineDiversa = !!sede && fine !== sede;
+  $('#bloccoFine').hidden = !(lav && mezzo && sede && andataRitorno && !modoGiro);
+  $('#fineApri').hidden = fineDiversa || fineAperta;
+  $('#fineRiga').hidden = !(fineDiversa || fineAperta);
+  $('#sediFine').innerHTML = M.SEDI.map(s => `<button class="sede" data-azione="sede-fine" data-valore="${s.id}" aria-pressed="${fine === s.id}" title="${s.lungo}">${s.nome}${s.id === sede ? '<small>stessa</small>' : ''}</button>`).join('');
   disegnaGiro(g, lav && mezzo, aMano);
   disegnaKm(g, lav && mezzo);
   $('#segAR').classList.toggle('auto', mezzo === 'macchina');
@@ -1114,7 +1130,11 @@ document.addEventListener('click', e => {
       const v = b.dataset.valore;
       return void modifica(v === '2' ? { tipo: 'corseLavoro', valore: 2 } : { tipo: 'corseLavoro', valore: 1, verso: v });
     }
-    case 'sede': giroAperto = false; bozzaGiro = null; return void modifica({ tipo: 'sede', valore: b.dataset.valore });
+    case 'sede': giroAperto = false; bozzaGiro = null; fineAperta = false; return void modifica({ tipo: 'sede', valore: b.dataset.valore });
+    case 'fine-apri': fineAperta = true; return ridisegna();
+    case 'sede-fine':
+      if (b.dataset.valore === stato.giorni[sel]?.sede) fineAperta = false;
+      return void modifica({ tipo: 'sedeFine', valore: b.dataset.valore });
     case 'giro-apri': case 'giro-modifica': {
       const g = stato.giorni[sel];
       bozzaGiro = M.percorsoAMano(g) ? [...g.percorso] : (M.esiste(g) && g.sede ? ['casa', g.sede] : ['casa']);
@@ -1241,7 +1261,7 @@ $('#btnCsv').addEventListener('click', () => {
     righe.push([d.toLocaleDateString('it-IT'), fGiornoSett.format(d),
       c ? (g.lavoro === false ? 'no' : 'sì') : '', c && g.lavoro !== false ? (g.mezzo || '') : '',
       M.corseLavoro(g), M.corseExtra(g), M.corseTotali(g), M.viaggiMacchina(g), M.viaggiAltro(g),
-      c && g.sede ? M.nomeLuogo(g.sede) : '', (M.percorso(g) || []).map(M.nomeLuogo).join(' → '),
+      c && g.sede ? M.nomeLuogo(g.sede) : '', M.testoTratti(M.tratti(g)),
       kmCsv(g), g?.mezzo === 'macchina' && M.kmGiorno(g, imp()) !== null ? (M.kmGiorno(g, imp()) * M.euroKm(imp())).toFixed(2).replace('.', ',') : '']);
   }
   const csv = '﻿' + righe.map(r => r.join(';')).join('\r\n');
